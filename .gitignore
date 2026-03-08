@@ -1,0 +1,21 @@
+# === Frontend ===
+frontend/node_modules/
+frontend/dist/
+frontend/.umi/
+frontend/.umi-production/
+frontend/.umi-test/
+frontend/coverage/
+frontend/.eslintcache
+
+# === Backend ===
+backend/target/
+backend/.idea/
+backend/*.iws
+backend/*.iml
+backend/*.ipr
+
+# === General ===
+.DS_Store
+*.log
+.vscode/
+.idea/
