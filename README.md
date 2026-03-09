@@ -76,30 +76,91 @@ GenBI/
 - Maven
 - MySQL 8.0（创建 `yubi` 数据库）
 
-### 1. 初始化数据库
+### 端口说明
+
+| 端口 | 服务 | 环境 | 配置文件 |
+|------|------|------|----------|
+| **12345** | 后端 API | dev（本地开发） | `backend/src/main/resources/application.yml` |
+| **8101** | 后端 API | test / prod | `backend/src/main/resources/application-test.yml` / `application-prod.yml` |
+| **8000** | 前端 | dev | `frontend/package.json` |
+| 3306 | MySQL | 所有环境 | 各 `application-*.yml` |
+
+### 1. 检查 MySQL 是否启动
+
+```bash
+# 方式一：直接连接
+mysql -u root -p
+
+# 方式二：查看 3306 端口是否被占用
+lsof -i :3306
+
+# 方式三：macOS 官方安装包用户
+# 打开「系统偏好设置 → MySQL」面板查看状态
+
+# 启动 / 停止 MySQL（官方安装包）
+sudo /usr/local/mysql/support-files/mysql.server start
+sudo /usr/local/mysql/support-files/mysql.server stop
+
+# 启动 / 停止 MySQL（Homebrew 安装）
+brew services start mysql
+brew services stop mysql
+```
+
+### 2. 初始化数据库
 
 ```sql
 -- 连接 MySQL 后执行
 source backend/sql/create_table.sql;
 ```
 
-### 2. 启动后端
+### 3. 启动后端
 
 ```bash
 cd backend
 mvn spring-boot:run
 # 后端运行在 http://localhost:12345/api
-# Knife4j 接口文档：http://localhost:12345/api/doc.html
 ```
 
-### 3. 启动前端
+后端启动成功后可访问：
+
+| 地址 | 用途 |
+|------|------|
+| http://localhost:12345/api/doc.html | Knife4j 接口文档（Swagger UI） |
+| http://localhost:12345/api/v2/api-docs | Swagger JSON（前端 openapi 插件使用） |
+
+### 4. 启动前端
 
 ```bash
 cd frontend
-pnpm install
-npm run dev
-# 前端运行在 http://localhost:8000
-# 请求通过 proxy 转发到后端
+npm install        # 首次或依赖变更时执行
+npm run dev        # 启动开发服务器，运行在 http://localhost:8000
+```
+
+> **注意：** `proxy.ts` 中 dev 环境的代理默认被注释掉了，需要取消注释才能将 `/api/*` 请求转发到后端 `http://localhost:12345`。
+
+### 5. 生成前端 API 代码
+
+```bash
+cd frontend
+npm run openapi    # 需要后端正在运行，从 Swagger JSON 自动生成 TypeScript 请求代码
+```
+
+### 常用命令速查
+
+```bash
+# --- 后端 ---
+cd backend && mvn spring-boot:run          # 启动后端
+
+# --- 前端 ---
+cd frontend && npm install                 # 安装依赖
+cd frontend && npm run dev                 # 启动前端开发服务器
+cd frontend && npm run openapi             # 从后端 Swagger 生成 API 代码
+cd frontend && npm run build               # 构建生产包
+
+# --- 数据库 ---
+mysql -u root -p                           # 连接 MySQL
+lsof -i :3306                              # 检查 MySQL 是否在运行
+lsof -i :12345                             # 检查后端是否在运行
 ```
 
 ### 默认账号

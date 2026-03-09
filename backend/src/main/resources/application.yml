@@ -20,7 +20,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/yubi
     username: root
-    password: ${MYSQL_PASSWORD:your_password_here}
+    password: Jiangxu1216
   # Redis 配置
   # todo 需替换配置，然后取消注释
 #  redis:
@@ -87,3 +87,8 @@ cos:
     secretKey: xxx
     region: xxx
     bucket: xxx
+# 鱼聪明 AI 配置（https://yucongming.com/）
+yuapi:
+  client:
+    access-key: 替换为你自己的 access-key
+    secret-key: 替换为你自己的 secret-key
