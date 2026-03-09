@@ -10,13 +10,12 @@
  * @doc https://umijs.org/docs/guides/proxy
  */
 export default {
-  // dev 代理：连接真实后端时取消注释
-  // dev: {
-  //   '/api/': {
-  //     target: 'http://localhost:12345',
-  //     changeOrigin: true,
-  //   },
-  // },
+  dev: {
+    '/api/': {
+      target: 'http://localhost:12345',
+      changeOrigin: true,
+    },
+  },
 
   /**
    * @name 详细的代理配置
