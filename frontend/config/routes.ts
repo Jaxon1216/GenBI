@@ -1,6 +1,7 @@
 ﻿export default [
   { name:'登录',path: '/user', layout: false, routes: [{ path: '/user/login', component: './User/Login' }] },
   { name:'欢迎页面',path: '/welcome', icon: 'smile', component: './Welcome' },
+  { name:'添加图表页面',path:'/add_chart',icon: 'table', component: './AddChart' },
   {
     path: '/admin',
     icon: 'crown',

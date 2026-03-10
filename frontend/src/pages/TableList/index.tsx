@@ -1,4 +1,9 @@
-import { addRule, removeRule, rule, updateRule } from '@/services/ant-design-pro/api';
+import {
+  addChartUsingPost,
+  deleteChartUsingPost,
+  editChartUsingPost,
+  listChartByPageUsingPost,
+} from '@/services/yubi/chartController';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps } from '@ant-design/pro-components';
 import {
@@ -11,104 +16,65 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import '@umijs/max';
-import { Button, Drawer, Input, message } from 'antd';
+import { Button, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
-import type { FormValueType } from './components/UpdateForm';
-import UpdateForm from './components/UpdateForm';
 
-/**
- * @en-US Add node
- * @zh-CN 添加节点
- * @param fields
- */
-const handleAdd = async (fields: API.RuleListItem) => {
+const handleAdd = async (fields: API.ChartAddRequest) => {
   const hide = message.loading('正在添加');
   try {
-    await addRule({
-      ...fields,
-    });
+    await addChartUsingPost({ ...fields });
     hide();
-    message.success('Added successfully');
+    message.success('添加成功');
     return true;
   } catch (error) {
     hide();
-    message.error('Adding failed, please try again!');
+    message.error('添加失败，请重试');
     return false;
   }
 };
 
-/**
- * @en-US Update node
- * @zh-CN 更新节点
- *
- * @param fields
- */
-const handleUpdate = async (fields: FormValueType) => {
-  const hide = message.loading('Configuring');
+const handleUpdate = async (fields: API.ChartEditRequest) => {
+  const hide = message.loading('正在更新');
   try {
-    await updateRule({
-      name: fields.name,
-      desc: fields.desc,
-      key: fields.key,
-    });
+    await editChartUsingPost({ ...fields });
     hide();
-    message.success('Configuration is successful');
+    message.success('更新成功');
     return true;
   } catch (error) {
     hide();
-    message.error('Configuration failed, please try again!');
+    message.error('更新失败，请重试');
     return false;
   }
 };
 
-/**
- *  Delete node
- * @zh-CN 删除节点
- *
- * @param selectedRows
- */
-const handleRemove = async (selectedRows: API.RuleListItem[]) => {
+const handleRemove = async (selectedRows: API.Chart[]) => {
   const hide = message.loading('正在删除');
   if (!selectedRows) return true;
   try {
-    await removeRule({
-      key: selectedRows.map((row) => row.key),
-    });
+    for (const row of selectedRows) {
+      await deleteChartUsingPost({ id: row.id });
+    }
     hide();
-    message.success('Deleted successfully and will refresh soon');
+    message.success('删除成功');
     return true;
   } catch (error) {
     hide();
-    message.error('Delete failed, please try again');
+    message.error('删除失败，请重试');
     return false;
   }
 };
+
 const TableList: React.FC = () => {
-  /**
-   * @en-US Pop-up window of new window
-   * @zh-CN 新建窗口的弹窗
-   *  */
   const [createModalOpen, handleModalOpen] = useState<boolean>(false);
-  /**
-   * @en-US The pop-up window of the distribution update window
-   * @zh-CN 分布更新窗口的弹窗
-   * */
-  const [updateModalOpen, handleUpdateModalOpen] = useState<boolean>(false);
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const actionRef = useRef<ActionType>();
-  const [currentRow, setCurrentRow] = useState<API.RuleListItem>();
-  const [selectedRowsState, setSelectedRows] = useState<API.RuleListItem[]>([]);
+  const [currentRow, setCurrentRow] = useState<API.Chart>();
+  const [selectedRowsState, setSelectedRows] = useState<API.Chart[]>([]);
 
-  /**
-   * @en-US International configuration
-   * @zh-CN 国际化配置
-   * */
-
-  const columns: ProColumns<API.RuleListItem>[] = [
+  const columns: ProColumns<API.Chart>[] = [
     {
-      title: '规则名称',
+      title: '图表名称',
       dataIndex: 'name',
-      tip: 'The rule name is the unique key',
       render: (dom, entity) => {
         return (
           <a
@@ -123,55 +89,20 @@ const TableList: React.FC = () => {
       },
     },
     {
-      title: '描述',
-      dataIndex: 'desc',
+      title: '分析目标',
+      dataIndex: 'goal',
       valueType: 'textarea',
     },
     {
-      title: '服务调用次数',
-      dataIndex: 'callNo',
-      sorter: true,
-      hideInForm: true,
-      renderText: (val: string) => `${val}${'万'}`,
+      title: '图表类型',
+      dataIndex: 'chartType',
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      hideInForm: true,
-      valueEnum: {
-        0: {
-          text: '关闭',
-          status: 'Default',
-        },
-        1: {
-          text: '运行中',
-          status: 'Processing',
-        },
-        2: {
-          text: '已上线',
-          status: 'Success',
-        },
-        3: {
-          text: '异常',
-          status: 'Error',
-        },
-      },
-    },
-    {
-      title: '上次调度时间',
-      sorter: true,
-      dataIndex: 'updatedAt',
+      title: '创建时间',
+      dataIndex: 'createTime',
       valueType: 'dateTime',
-      renderFormItem: (item, { defaultRender, ...rest }, form) => {
-        const status = form.getFieldValue('status');
-        if (`${status}` === '0') {
-          return false;
-        }
-        if (`${status}` === '3') {
-          return <Input {...rest} placeholder={'请输入异常原因！'} />;
-        }
-        return defaultRender(item);
-      },
+      sorter: true,
+      hideInSearch: true,
     },
     {
       title: '操作',
@@ -179,26 +110,24 @@ const TableList: React.FC = () => {
       valueType: 'option',
       render: (_, record) => [
         <a
-          key="config"
+          key="detail"
           onClick={() => {
-            handleUpdateModalOpen(true);
             setCurrentRow(record);
+            setShowDetail(true);
           }}
         >
-          配置
-        </a>,
-        <a key="subscribeAlert" href="https://procomponents.ant.design/">
-          订阅警报
+          查看
         </a>,
       ],
     },
   ];
+
   return (
     <PageContainer>
-      <ProTable<API.RuleListItem, API.PageParams>
-        headerTitle={'查询表格'}
+      <ProTable<API.Chart>
+        headerTitle={'图表列表'}
         actionRef={actionRef}
-        rowKey="key"
+        rowKey="id"
         search={{
           labelWidth: 120,
         }}
@@ -213,7 +142,18 @@ const TableList: React.FC = () => {
             <PlusOutlined /> 新建
           </Button>,
         ]}
-        request={rule}
+        request={async (params, sort) => {
+          const res = await listChartByPageUsingPost({
+            ...params,
+            sortField: sort && Object.keys(sort)[0],
+            sortOrder: sort && Object.values(sort)[0],
+          } as API.ChartQueryRequest);
+          return {
+            data: res?.data?.records ?? [],
+            success: true,
+            total: res?.data?.total ?? 0,
+          };
+        }}
         columns={columns}
         rowSelection={{
           onChange: (_, selectedRows) => {
@@ -225,18 +165,7 @@ const TableList: React.FC = () => {
         <FooterToolbar
           extra={
             <div>
-              已选择{' '}
-              <a
-                style={{
-                  fontWeight: 600,
-                }}
-              >
-                {selectedRowsState.length}
-              </a>{' '}
-              项 &nbsp;&nbsp;
-              <span>
-                服务调用次数总计 {selectedRowsState.reduce((pre, item) => pre + item.callNo!, 0)} 万
-              </span>
+              已选择 <a style={{ fontWeight: 600 }}>{selectedRowsState.length}</a> 项
             </div>
           }
         >
@@ -249,16 +178,15 @@ const TableList: React.FC = () => {
           >
             批量删除
           </Button>
-          <Button type="primary">批量审批</Button>
         </FooterToolbar>
       )}
       <ModalForm
-        title={'新建规则'}
+        title={'新建图表'}
         width="400px"
         open={createModalOpen}
         onOpenChange={handleModalOpen}
         onFinish={async (value) => {
-          const success = await handleAdd(value as API.RuleListItem);
+          const success = await handleAdd(value as API.ChartAddRequest);
           if (success) {
             handleModalOpen(false);
             if (actionRef.current) {
@@ -268,37 +196,13 @@ const TableList: React.FC = () => {
         }}
       >
         <ProFormText
-          rules={[
-            {
-              required: true,
-              message: '规则名称为必填项',
-            },
-          ]}
+          rules={[{ required: true, message: '图表名称为必填项' }]}
           width="md"
           name="name"
+          label="图表名称"
         />
-        <ProFormTextArea width="md" name="desc" />
+        <ProFormTextArea width="md" name="goal" label="分析目标" />
       </ModalForm>
-      <UpdateForm
-        onSubmit={async (value) => {
-          const success = await handleUpdate(value);
-          if (success) {
-            handleUpdateModalOpen(false);
-            setCurrentRow(undefined);
-            if (actionRef.current) {
-              actionRef.current.reload();
-            }
-          }
-        }}
-        onCancel={() => {
-          handleUpdateModalOpen(false);
-          if (!showDetail) {
-            setCurrentRow(undefined);
-          }
-        }}
-        updateModalOpen={updateModalOpen}
-        values={currentRow || {}}
-      />
 
       <Drawer
         width={600}
@@ -310,16 +214,16 @@ const TableList: React.FC = () => {
         closable={false}
       >
         {currentRow?.name && (
-          <ProDescriptions<API.RuleListItem>
+          <ProDescriptions<API.Chart>
             column={2}
             title={currentRow?.name}
             request={async () => ({
               data: currentRow || {},
             })}
             params={{
-              id: currentRow?.name,
+              id: currentRow?.id,
             }}
-            columns={columns as ProDescriptionsItemProps<API.RuleListItem>[]}
+            columns={columns as ProDescriptionsItemProps<API.Chart>[]}
           />
         )}
       </Drawer>
