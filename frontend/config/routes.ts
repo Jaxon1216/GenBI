@@ -1,7 +1,8 @@
 ﻿export default [
   { name:'登录',path: '/user', layout: false, routes: [{ path: '/user/login', component: './User/Login' }] },
   { name:'欢迎页面',path: '/welcome', icon: 'smile', component: './Welcome' },
-  { name:'添加图表页面',path:'/add_chart',icon: 'table', component: './AddChart' },
+  { name:'添加图表',path:'/add_chart',icon: 'signalFilled', component: './AddChart' },
+  { name:'我的图表',path:'/my_chart',icon: 'appleOutlined', component: './myChart' },
   {
     path: '/admin',
     icon: 'crown',
