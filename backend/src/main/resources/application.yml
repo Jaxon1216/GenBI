@@ -23,12 +23,11 @@ spring:
     password: Jiangxu1216
   # Redis 配置
   # todo 需替换配置，然后取消注释
-#  redis:
-#    database: 1
-#    host: localhost
-#    port: 6379
-#    timeout: 5000
-#    password: 123456
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    timeout: 5000
   # Elasticsearch 配置
   # todo 需替换配置，然后取消注释
 #  elasticsearch:
@@ -87,8 +86,8 @@ cos:
     secretKey: xxx
     region: xxx
     bucket: xxx
-# 鱼聪明 AI 配置（https://yucongming.com/）
-yuapi:
-  client:
-    access-key: 替换为你自己的 access-key
-    secret-key: 替换为你自己的 secret-key
+# AI 配置（百度千帆 OpenAI 兼容接口）
+ai:
+  base-url: https://qianfan.baidubce.com/v2/coding
+  api-key: bce-v3/ALTAKSP-GfyMSBwqhkHGMnFG8FxLN/01e33d7629fc31c796a2387db09a5eb2f4b65b03
+  model: qianfan-code-latest
