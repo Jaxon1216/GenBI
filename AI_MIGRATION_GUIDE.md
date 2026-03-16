@@ -337,6 +337,82 @@ mvn test -Dtest=AiManagerTest#doChat -pl .
 
 ---
 
+## 数据库字段改动与实体类同步
+
+### 背景说明
+
+如果你在 `backend/sql/create_table.sql` 中新增了数据库字段（例如为了支持异步任务添加 `status` 和 `execMessage` 字段），需要完成以下 3 个步骤才能让这些字段真正生效：
+
+### 步骤 1：执行数据库迁移
+
+在 Cursor 的 Database 插件中连接到数据库后：
+
+**如果是全新数据库**：
+- 直接执行整个 `create_table.sql` 文件
+
+**如果数据库已有数据**（推荐方式）：
+- 使用 ALTER TABLE 语句添加新字段，避免删除现有数据
+- 例如添加 `status` 和 `execMessage` 字段：
+
+```sql
+ALTER TABLE chart 
+ADD COLUMN status varchar(128) NOT NULL DEFAULT 'wait' COMMENT 'wait,running,succeed,failed' AFTER genResult;
+
+ALTER TABLE chart 
+ADD COLUMN execMessage text NULL COMMENT '执行信息' AFTER status;
+```
+
+**注意**：
+- Database 插件已经选择了数据库，不需要在查询中写 `USE yubi;`
+- 如果报错 "Duplicate column name"，说明字段已存在，跳过此步骤
+- 可以用 `DESCRIBE chart;` 查看表的当前结构
+
+### 步骤 2：更新 Java 实体类
+
+文件路径：`backend/src/main/java/com/yupi/springbootinit/model/entity/Chart.java`
+
+在对应位置添加新字段的属性。例如在 `genResult` 字段后、`userId` 字段前添加：
+
+```java
+/**
+ * 任务状态
+ */
+private String status;
+
+/**
+ * 执行信息
+ */
+private String execMessage;
+```
+
+**为什么必须添加**：
+- Java 使用 MyBatis-Plus 做 ORM（对象关系映射）
+- 数据库的列 ↔️ Java 类的属性，必须一一对应
+- 如果实体类中没有这个属性，Java 代码就无法读取或写入数据库中的这个字段
+- 即使数据库表有这个列，Java 代码也"看不到"它
+
+### 步骤 3：在业务逻辑中使用新字段
+
+根据需求在 Service 或 Controller 中使用新增的字段。例如：
+
+```java
+// 创建图表时设置初始状态
+Chart chart = new Chart();
+chart.setStatus("wait");
+chartService.save(chart);
+
+// 更新状态
+chart.setStatus("running");
+chartService.updateById(chart);
+
+// 失败时记录错误信息
+chart.setStatus("failed");
+chart.setExecMessage("AI 调用超时");
+chartService.updateById(chart);
+```
+
+---
+
 ## 后续期数注意事项
 
 - **第 4 期（异步分析）**：如果新增了异步版的 `genChartByAiAsync` 方法，其中的 `aiManager.doChat(biModelId, ...)` 调用同样需要改成 `aiManager.doChat(systemPrompt, ...)`，分隔符同样改为 4 个 `【`
