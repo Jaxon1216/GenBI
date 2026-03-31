@@ -1,9 +1,13 @@
 import { listMyChartByPageUsingPost } from '@/services/yubi/chartController';
+import SafeChart from '@/components/SafeChart';
+import ChartCardSkeleton from '@/components/ChartCardSkeleton';
+import VirtualDataTable from '@/components/VirtualDataTable';
+import { usePolling } from '@/hooks/usePolling';
 import { useModel } from '@@/exports';
-import {Avatar, Card, List, message, Result} from 'antd';
-import ReactECharts from 'echarts-for-react';
-import React, { useEffect, useState } from 'react';
-import Search from "antd/es/input/Search";
+import { DatabaseOutlined } from '@ant-design/icons';
+import { Avatar, Button, Card, List, message, Result, Tag } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Search from 'antd/es/input/Search';
 
 /**
  * 我的图表页面
@@ -25,35 +29,45 @@ const MyChartPage: React.FC = () => {
   const [total, setTotal] = useState<number>(0);
   // 用来控制页面是否加载
   const [loading, setLoading] = useState<boolean>(true);
+  const [dataModalChart, setDataModalChart] = useState<API.Chart | null>(null);
 
-  const loadData = async () => {
-    // 当触发搜索,把loading设置为true
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await listMyChartByPageUsingPost(searchParams);
       if (res.data) {
         setChartList(res.data.records ?? []);
         setTotal(res.data.total ?? 0);
-        // 有些图表有标题,有些没有,直接把标题全部去掉
-        if (res.data.records) {
-          res.data.records.forEach(data => {
-            // 要把后端返回的图表字符串改为对象数组,如果后端返回空字符串，就返回'{}'
-            const chartOption = JSON.parse(data.genChart ?? '{}');
-            // 把标题设为undefined
-            chartOption.title = undefined;
-            // 然后把修改后的数据转换为json设置回去
-            data.genChart = JSON.stringify(chartOption);
-          })
-        }
-      } else {
+      } else if (!silent) {
         message.error('获取我的图表失败');
       }
     } catch (e: any) {
-      message.error('获取我的图表失败，' + e.message);
+      if (!silent) message.error('获取我的图表失败，' + e.message);
     }
-    // 搜索结束设置为false
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
+
+  const hasPendingCharts = useMemo(
+    () => chartList?.some((c) => c.status === 'wait' || c.status === 'running') ?? false,
+    [chartList],
+  );
+
+  const pollCallback = useCallback(async () => {
+    await loadData(true);
+  }, [searchParams]);
+
+  const { reportDataSnapshot } = usePolling(pollCallback, {
+    enabled: hasPendingCharts,
+    baseInterval: 3000,
+    maxInterval: 30000,
+  });
+
+  useEffect(() => {
+    if (chartList) {
+      const snapshot = chartList.map((c) => `${c.id}:${c.status}`).join(',');
+      reportDataSnapshot(snapshot);
+    }
+  }, [chartList, reportDataSnapshot]);
 
   useEffect(() => {
     loadData();
@@ -78,6 +92,9 @@ const MyChartPage: React.FC = () => {
         }}/>
       </div>
       <div className="margin-16" />
+      {loading && !chartList?.length ? (
+        <ChartCardSkeleton count={4} />
+      ) : (
       <List
         /*
           栅格间隔16像素;xs屏幕<576px,栅格数1;
@@ -127,35 +144,42 @@ const MyChartPage: React.FC = () => {
               />
               <>
                 {
-                  // 当状态（item.status）为'wait'时，显示待生成的结果组件
                   item.status === 'wait' && <>
                     <Result
-                      // 状态为警告
                       status="warning"
                       title="待生成"
-                       // 子标题显示执行消息，如果执行消息为空，则显示'当前图表生成队列繁忙，请耐心等候'
                       subTitle={item.execMessage ?? '当前图表生成队列繁忙，请耐心等候'}
+                      extra={<Tag color="orange">自动刷新中</Tag>}
                     />
                   </>
                 }
                 {
                   item.status === 'running' && <>
                     <Result
-                      // 状态为信息
                       status="info"
                       title="图表生成中"
-                       // 子标题显示执行消息
                       subTitle={item.execMessage}
+                      extra={<Tag color="processing">自动刷新中</Tag>}
                     />
                   </>
                 }
                 {
-                  // 当状态（item.status）为'succeed'时，显示生成的图表
                   item.status === 'succeed' && <>
                     <div style={{ marginBottom: 16 }} />
                     <p>{'分析目标：' + item.goal}</p>
                     <div style={{ marginBottom: 16 }} />
-                    <ReactECharts option={item.genChart && JSON.parse(item.genChart)} />
+                    <SafeChart rawChartJson={item.genChart} stripTitle />
+                    {item.chartData && (
+                      <Button
+                        type="link"
+                        icon={<DatabaseOutlined />}
+                        size="small"
+                        style={{ marginTop: 8 }}
+                        onClick={() => setDataModalChart(item)}
+                      >
+                        查看原始数据
+                      </Button>
+                    )}
                   </>
                 }
                 {
@@ -172,6 +196,13 @@ const MyChartPage: React.FC = () => {
             </Card>
           </List.Item>
         )}
+      />
+      )}
+      <VirtualDataTable
+        visible={!!dataModalChart}
+        onClose={() => setDataModalChart(null)}
+        csvData={dataModalChart?.chartData}
+        chartName={dataModalChart?.name}
       />
     </div>
   );

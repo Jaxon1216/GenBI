@@ -19,3 +19,15 @@ backend/*.ipr
 *.log
 .vscode/
 .idea/
+
+
+
+LEARNING_GUIDE.md
+
+RESUME_AND_INTERVIEW.md
+
+分页列表实现教程.md
+
+后端迁移记录.md
+
+AI_MIGRATION_GUIDE.md
