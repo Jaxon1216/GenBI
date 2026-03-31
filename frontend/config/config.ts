@@ -143,6 +143,7 @@ export default defineConfig({
   ],
   mfsu: {
     strategy: 'normal',
+    exclude: ['react-grid-layout', 'react-window'],
   },
   requestRecord: {},
 });

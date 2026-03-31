@@ -1,9 +1,9 @@
 import { genChartByAiUsingPost } from '@/services/yubi/chartController';
+import SafeChart from '@/components/SafeChart';
 import { UploadOutlined } from '@ant-design/icons';
 import { Button, Card, Col, Divider, Form, Input, message, Row, Select, Space, Spin, Upload } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import React, { useState } from 'react';
-import ReactECharts from 'echarts-for-react';
 
 /**
  * 添加图表页面
@@ -11,10 +11,8 @@ import ReactECharts from 'echarts-for-react';
  */
 // 把多余的状态删掉，页面名称改为AddChart
 const AddChart: React.FC = () => {
-  // 定义状态，用来接收后端的返回值，让它实时展示在页面上
   const [chart, setChart] = useState<API.BiResponse>();
-  const [option, setOption] = useState<any>();
-  // 提交中的状态，默认未提交
+  const [rawChartJson, setRawChartJson] = useState<string>();
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   /**
@@ -28,10 +26,8 @@ const AddChart: React.FC = () => {
     }
     // 当开始提交，把submitting设置为true
     setSubmitting(true);
-    // 如果提交了，把图表数据和图表代码清空掉，防止和之前提交的图标堆叠在一起
-    // 如果option清空了，组件就会触发重新渲染，就不会保留之前的历史记录
     setChart(undefined);
-    setOption(undefined);
+    setRawChartJson(undefined);
 
       // 对接后端，上传数据
       const params = {
@@ -45,18 +41,9 @@ const AddChart: React.FC = () => {
         if (!res?.data) {
           message.error('分析失败');
         } else {
-          message.success('分析成功');  
-          // 解析成对象，为空则设为空字符串
-          const chartOption = JSON.parse(res.data.genChart ?? '');
-          // 如果为空，则抛出异常，并提示'图表代码解析错误'
-          if (!chartOption) {
-            throw new Error('图表代码解析错误')
-          // 如果成功
-          } else {
-            // 从后端得到响应结果之后，把响应结果设置到图表状态里
-            setChart(res.data);
-            setOption(chartOption);
-          }
+          message.success('分析成功');
+          setChart(res.data);
+          setRawChartJson(res.data.genChart);
         }  
       // 异常情况下，提示分析失败+具体失败原因
       } catch (e: any) {
@@ -155,12 +142,7 @@ const AddChart: React.FC = () => {
         {/* 加一个间距 */}
         <Divider />
         <Card title="可视化图表">
-            {/* 如果它存在，才渲染这个组件 */}
-            {
-              // 后端返回的代码是字符串，不是对象，用JSON.parse解析成对象
-              option ? <ReactECharts option={option} /> : <div>请先在左侧进行提交</div>
-            }
-            {/* 提交中，还未返回结果，图表就显示加载中的组件 */}
+            {rawChartJson ? <SafeChart rawChartJson={rawChartJson} /> : <div>请先在左侧进行提交</div>}
             <Spin spinning={submitting}/>
         </Card>
         </Col>
