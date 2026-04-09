@@ -1,0 +1,12 @@
+node_modules
+dist
+.umi
+.umi-production
+.DS_Store
+*.log
+.git
+.vscode
+.idea
+coverage
+.env.local
+.env.*.local
