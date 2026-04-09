@@ -129,7 +129,7 @@ const Login: React.FC = () => {
           logo={<img alt="logo" src="/logo.svg" />}
           title="EastonJiang BI"
           subTitle={
-            <a href="https://jiangxu.net" target="_blank">
+            <a href="https://jiangxu.net" target="_blank" rel="noreferrer">
               EastonJiang 做的生成式智能BI项目
             </a>
           }
