@@ -1,7 +1,6 @@
 import {
   addChartUsingPost,
   deleteChartUsingPost,
-  editChartUsingPost,
   listChartByPageUsingPost,
 } from '@/services/yubi/chartController';
 import { PlusOutlined } from '@ant-design/icons';
@@ -33,19 +32,7 @@ const handleAdd = async (fields: API.ChartAddRequest) => {
   }
 };
 
-const handleUpdate = async (fields: API.ChartEditRequest) => {
-  const hide = message.loading('正在更新');
-  try {
-    await editChartUsingPost({ ...fields });
-    hide();
-    message.success('更新成功');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('更新失败，请重试');
-    return false;
-  }
-};
+// handleUpdate 函数已移除（未使用）
 
 const handleRemove = async (selectedRows: API.Chart[]) => {
   const hide = message.loading('正在删除');

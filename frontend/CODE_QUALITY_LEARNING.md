@@ -1,6 +1,7 @@
 # 前端工程化与代码规范学习指南
 
 ## 🎯 学习目标
+
 通过实践掌握 ESLint + Prettier + TypeScript + Husky 工具链
 
 ---
@@ -8,20 +9,25 @@
 ## 📖 第一部分：理解工具的作用
 
 ### 1. ESLint - 代码质量守护者
+
 **作用**：检查代码中的潜在问题和不规范写法
+
 - 未使用的变量
 - 可能的逻辑错误
 - 不符合团队规范的代码风格
 - React Hooks 使用错误
 
 **命令**：
+
 ```bash
 npm run lint:js          # 检查代码
 npm run lint:fix         # 自动修复
 ```
 
 ### 2. Prettier - 代码格式化工具
+
 **作用**：统一代码格式，避免格式争论
+
 - 缩进（空格/Tab）
 - 引号（单引号/双引号）
 - 分号
@@ -29,25 +35,31 @@ npm run lint:fix         # 自动修复
 - 行宽
 
 **命令**：
+
 ```bash
 npm run prettier         # 格式化所有文件
 npm run lint:prettier    # 检查并格式化
 ```
 
 ### 3. TypeScript - 类型检查
+
 **作用**：在编译时发现类型错误
+
 - 函数参数类型
 - 返回值类型
 - 对象属性类型
 - 避免运行时类型错误
 
 **命令**：
+
 ```bash
 npm run tsc             # 类型检查
 ```
 
 ### 4. Husky + lint-staged - 自动化守门员
+
 **作用**：在 git commit 前自动运行检查
+
 - pre-commit: 提交前检查代码质量
 - commit-msg: 检查提交信息格式
 - 只检查暂存的文件（提高效率）
@@ -56,9 +68,10 @@ npm run tsc             # 类型检查
 
 ## 🚀 第二部分：动手实践
 
-### 练习 1: ESLint 基础（15分钟）
+### 练习 1: ESLint 基础（15 分钟）
 
 #### 步骤：
+
 1. 打开 `frontend/learning-examples/eslint-practice.tsx`
 2. 运行检查命令：
    ```bash
@@ -74,6 +87,7 @@ npm run tsc             # 类型检查
 6. 对比自动修复前后的差异
 
 #### 你会遇到的问题：
+
 - ❌ 未使用的变量
 - ❌ console.log 不应该出现在生产代码
 - ❌ any 类型滥用
@@ -82,9 +96,10 @@ npm run tsc             # 类型检查
 
 ---
 
-### 练习 2: Prettier 格式化（10分钟）
+### 练习 2: Prettier 格式化（10 分钟）
 
 #### 步骤：
+
 1. 打开 `frontend/learning-examples/prettier-practice.tsx`
 2. 观察代码格式混乱的地方
 3. 运行格式化：
@@ -94,6 +109,7 @@ npm run tsc             # 类型检查
 4. 观察文件变化，理解 Prettier 做了什么
 
 #### 你会看到的变化：
+
 - ✅ 双引号变单引号
 - ✅ 缺失的分号被添加
 - ✅ 缩进统一
@@ -102,9 +118,10 @@ npm run tsc             # 类型检查
 
 ---
 
-### 练习 3: TypeScript 类型检查（20分钟）
+### 练习 3: TypeScript 类型检查（20 分钟）
 
 #### 步骤：
+
 1. 打开 `frontend/learning-examples/typescript-practice.tsx`
 2. 运行类型检查：
    ```bash
@@ -115,6 +132,7 @@ npm run tsc             # 类型检查
 5. 再次运行检查，直到没有错误
 
 #### 你会遇到的类型错误：
+
 - ❌ 参数类型不匹配
 - ❌ 返回值类型错误
 - ❌ 对象属性缺失
@@ -123,9 +141,10 @@ npm run tsc             # 类型检查
 
 ---
 
-### 练习 4: Husky 提交钩子（15分钟）
+### 练习 4: Husky 提交钩子（15 分钟）
 
 #### 步骤：
+
 1. 确保 Husky 已安装：
    ```bash
    cd frontend
@@ -141,8 +160,9 @@ npm run tsc             # 类型检查
 5. 修复错误后再次提交
 
 #### 体验的流程：
+
 ```
-git commit 
+git commit
   ↓
 pre-commit 钩子触发
   ↓
@@ -168,22 +188,23 @@ TypeScript 类型检查
 module.exports = {
   // 继承 UmiJS 官方配置
   extends: [require.resolve('@umijs/lint/dist/config/eslint')],
-  
+
   // 全局变量
   globals: {
     page: true,
     REACT_APP_ENV: true,
   },
-  
+
   // 自定义规则（可以添加）
   rules: {
     // 'no-console': 'warn',  // console 警告
     // '@typescript-eslint/no-unused-vars': 'error',  // 未使用变量报错
-  }
+  },
 };
 ```
 
 **常用规则**：
+
 - `no-console`: 禁止 console
 - `no-debugger`: 禁止 debugger
 - `no-unused-vars`: 禁止未使用变量
@@ -196,15 +217,16 @@ module.exports = {
 
 ```javascript
 module.exports = {
-  singleQuote: true,        // 使用单引号
-  trailingComma: 'all',     // 尾部逗号
-  printWidth: 100,          // 行宽 100
-  proseWrap: 'never',       // 不换行
-  endOfLine: 'lf',          // 换行符 LF
+  singleQuote: true, // 使用单引号
+  trailingComma: 'all', // 尾部逗号
+  printWidth: 100, // 行宽 100
+  proseWrap: 'never', // 不换行
+  endOfLine: 'lf', // 换行符 LF
 };
 ```
 
 **配置说明**：
+
 - `singleQuote`: 单引号 vs 双引号
 - `semi`: 是否加分号
 - `tabWidth`: 缩进宽度
@@ -218,14 +240,15 @@ module.exports = {
 ```json
 {
   "compilerOptions": {
-    "strict": true,                    // 严格模式
-    "target": "esnext",                // 编译目标
-    "module": "esnext",                // 模块系统
-    "jsx": "preserve",                 // JSX 处理
-    "esModuleInterop": true,           // 模块互操作
-    "skipLibCheck": true,              // 跳过库检查
-    "baseUrl": "./",                   // 基础路径
-    "paths": {                         // 路径映射
+    "strict": true, // 严格模式
+    "target": "esnext", // 编译目标
+    "module": "esnext", // 模块系统
+    "jsx": "preserve", // JSX 处理
+    "esModuleInterop": true, // 模块互操作
+    "skipLibCheck": true, // 跳过库检查
+    "baseUrl": "./", // 基础路径
+    "paths": {
+      // 路径映射
       "@/*": ["./src/*"]
     }
   }
@@ -233,6 +256,7 @@ module.exports = {
 ```
 
 **重要选项**：
+
 - `strict`: 启用所有严格类型检查
 - `noImplicitAny`: 禁止隐式 any
 - `strictNullChecks`: 严格 null 检查
@@ -243,19 +267,19 @@ module.exports = {
 ### Husky 配置
 
 **pre-commit** (`.husky/pre-commit`):
+
 ```bash
 #!/bin/sh
 npx --no-install lint-staged
 ```
 
 **lint-staged** (`package.json`):
+
 ```json
 {
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": "npm run lint-staged:js",
-    "**/*.{js,jsx,tsx,ts,less,md,json}": [
-      "prettier --write"
-    ]
+    "**/*.{js,jsx,tsx,ts,less,md,json}": ["prettier --write"]
   }
 }
 ```
@@ -278,15 +302,18 @@ module.exports = {
   rules: {
     // 警告级别的 console
     'no-console': ['warn', { allow: ['warn', 'error'] }],
-    
+
     // 禁止使用 any
     '@typescript-eslint/no-explicit-any': 'error',
-    
+
     // 未使用变量报错
-    '@typescript-eslint/no-unused-vars': ['error', {
-      argsIgnorePattern: '^_',  // 忽略 _开头的参数
-    }],
-    
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_', // 忽略 _开头的参数
+      },
+    ],
+
     // React Hooks 依赖检查
     'react-hooks/exhaustive-deps': 'warn',
   },
@@ -304,18 +331,14 @@ module.exports = {
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
   },
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ]
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
 }
 ```
 
 ### 任务 3: 添加提交信息检查
 
 编辑 `.husky/commit-msg`，确保提交信息符合规范：
+
 - feat: 新功能
 - fix: 修复
 - docs: 文档
@@ -333,11 +356,13 @@ module.exports = {
 **现象**：ESLint 要求加分号，Prettier 自动删除分号
 
 **解决**：使用 `eslint-config-prettier` 禁用冲突规则
+
 ```bash
 npm install --save-dev eslint-config-prettier
 ```
 
 在 `.eslintrc.js` 中：
+
 ```javascript
 extends: [
   require.resolve('@umijs/lint/dist/config/eslint'),
@@ -348,6 +373,7 @@ extends: [
 ### 问题 2: Husky 钩子不生效
 
 **解决步骤**：
+
 ```bash
 cd frontend
 rm -rf .husky
@@ -358,6 +384,7 @@ chmod +x .husky/*
 ### 问题 3: TypeScript 报错太多
 
 **临时方案**：在 `tsconfig.json` 中降低严格度
+
 ```json
 {
   "compilerOptions": {
@@ -417,6 +444,7 @@ chmod +x .husky/*
 ## 🚀 下一步
 
 学完这些后，你可以：
+
 1. 在简历中写：熟练使用 ESLint + Prettier + TypeScript + Husky 保障代码质量
 2. 面试时能够讲解每个工具的作用和配置
 3. 在新项目中从零搭建代码规范体系

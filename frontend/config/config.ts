@@ -1,6 +1,5 @@
 // https://umijs.org/config/
 import { defineConfig } from '@umijs/max';
-import { join } from 'path';
 import defaultSettings from './defaultSettings';
 import proxy from './proxy';
 import routes from './routes';
@@ -130,7 +129,7 @@ export default defineConfig({
     {
       requestLibPath: "import { request } from '@umijs/max'",
       // 或者使用在线的版本
-      schemaPath: "http://localhost:8080/api/v2/api-docs",
+      schemaPath: 'http://localhost:8080/api/v2/api-docs',
       projectName: 'yubi',
       // schemaPath: join(__dirname, 'oneapi.json'),
       mock: false,

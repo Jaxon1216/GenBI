@@ -53,16 +53,16 @@ export default [
 
 ## 各字段说明
 
-| 字段 | 类型 | 作用 |
-|------|------|------|
-| `path` | string | URL 路径 |
-| `name` | string | **侧边栏菜单名称，不设置则不显示在菜单中** |
-| `icon` | string | 侧边栏图标，值为 antd Icon 组件名（如 `smile`, `crown`, `table`） |
-| `component` | string | 页面组件路径，相对于 `src/pages/` |
-| `layout` | boolean | 是否使用全局布局，`false` 表示独立页面（无侧边栏） |
-| `routes` | array | 子路由，用于嵌套菜单 |
-| `redirect` | string | 重定向目标路径 |
-| `access` | string | 权限标识，对应 `src/access.ts` 中定义的权限函数 |
+| 字段        | 类型    | 作用                                                              |
+| ----------- | ------- | ----------------------------------------------------------------- |
+| `path`      | string  | URL 路径                                                          |
+| `name`      | string  | **侧边栏菜单名称，不设置则不显示在菜单中**                        |
+| `icon`      | string  | 侧边栏图标，值为 antd Icon 组件名（如 `smile`, `crown`, `table`） |
+| `component` | string  | 页面组件路径，相对于 `src/pages/`                                 |
+| `layout`    | boolean | 是否使用全局布局，`false` 表示独立页面（无侧边栏）                |
+| `routes`    | array   | 子路由，用于嵌套菜单                                              |
+| `redirect`  | string  | 重定向目标路径                                                    |
+| `access`    | string  | 权限标识，对应 `src/access.ts` 中定义的权限函数                   |
 
 ## 当前项目路由结构
 

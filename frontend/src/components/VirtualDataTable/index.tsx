@@ -1,4 +1,4 @@
-import { Modal, Typography, Tag, Empty } from 'antd';
+import { Empty, Modal, Tag, Typography } from 'antd';
 import React, { useMemo } from 'react';
 import { FixedSizeList as VirtualList } from 'react-window';
 
@@ -22,7 +22,12 @@ function parseCsv(csv: string): { headers: string[]; rows: string[][] } {
 const ROW_HEIGHT = 40;
 const MAX_VISIBLE_ROWS = 15;
 
-const VirtualDataTable: React.FC<VirtualDataTableProps> = ({ visible, onClose, csvData, chartName }) => {
+const VirtualDataTable: React.FC<VirtualDataTableProps> = ({
+  visible,
+  onClose,
+  csvData,
+  chartName,
+}) => {
   const { headers, rows } = useMemo(() => parseCsv(csvData ?? ''), [csvData]);
 
   const listHeight = Math.min(rows.length, MAX_VISIBLE_ROWS) * ROW_HEIGHT;

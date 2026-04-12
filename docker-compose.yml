@@ -1,0 +1,61 @@
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - genbi-network
+
+  # 后端服务（与 frontend/nginx 中 proxy_pass backend:8081、SERVER_PORT 一致）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.backend
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/genbi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=your_password
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - genbi-network
+
+  redis:
+    # Docker Hub 拉不下来时用下面一行替换（与 mysql 同理）
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - genbi-network
+
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"  # 使用 3307 避免端口冲突
+    environment:
+      - MYSQL_ROOT_PASSWORD=your_password
+      - MYSQL_DATABASE=genbi
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - genbi-network
+
+networks:
+  genbi-network:
+    driver: bridge
+
+volumes:
+  mysql-data:

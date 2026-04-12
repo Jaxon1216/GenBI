@@ -1,0 +1,17 @@
+# 简化版 Docker Compose - 只启动前端
+# 适合快速测试和演示
+
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - genbi-network
+
+networks:
+  genbi-network:
+    driver: bridge

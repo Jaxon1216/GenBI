@@ -1,63 +1,15 @@
 import Footer from '@/components/Footer';
+import { listChartByPageUsingPost } from '@/services/yubi/chartController';
 import { userLoginUsingPost } from '@/services/yubi/userController';
-import {
-  AlipayCircleOutlined,
-  LockOutlined,
-  TaobaoCircleOutlined,
-  UserOutlined,
-  WeiboCircleOutlined,
-} from '@ant-design/icons';
-import {
-  LoginForm,
-  ProFormCheckbox,
-  ProFormText,
-} from '@ant-design/pro-components';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { useEmotionCss } from '@ant-design/use-emotion-css';
 import { Helmet, history, Link, useModel } from '@umijs/max';
-import { Alert, message, Tabs } from 'antd';
-import React, {useEffect, useState} from 'react';
+import { message, Tabs } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import Settings from '../../../../config/defaultSettings';
-import {listChartByPageUsingPost} from "@/services/yubi/chartController";
-const ActionIcons = () => {
-  const langClassName = useEmotionCss(({ token }) => {
-    return {
-      marginLeft: '8px',
-      color: 'rgba(0, 0, 0, 0.2)',
-      fontSize: '24px',
-      verticalAlign: 'middle',
-      cursor: 'pointer',
-      transition: 'color 0.3s',
-      '&:hover': {
-        color: token.colorPrimaryActive,
-      },
-    };
-  });
-  return (
-    <>
-      <AlipayCircleOutlined key="AlipayCircleOutlined" className={langClassName} />
-      <TaobaoCircleOutlined key="TaobaoCircleOutlined" className={langClassName} />
-      <WeiboCircleOutlined key="WeiboCircleOutlined" className={langClassName} />
-    </>
-  );
-};
-
-const LoginMessage: React.FC<{
-  content: string;
-}> = ({ content }) => {
-  return (
-    <Alert
-      style={{
-        marginBottom: 24,
-      }}
-      message={content}
-      type="error"
-      showIcon
-    />
-  );
-};
 const Login: React.FC = () => {
-
   const [type, setType] = useState<string>('account');
   const { initialState, setInitialState } = useModel('@@initialState');
   const containerClassName = useEmotionCss(() => {
@@ -72,12 +24,11 @@ const Login: React.FC = () => {
     };
   });
 
-
   useEffect(() => {
     listChartByPageUsingPost({}).then((res: any) => {
-      console.error('res', res)
-    })
-  })
+      console.error('res', res);
+    });
+  }, []);
 
   const fetchUserInfo = async () => {
     const userInfo = await initialState?.fetchUserInfo?.();
@@ -133,7 +84,6 @@ const Login: React.FC = () => {
               EastonJiang 做的生成式智能BI项目
             </a>
           }
-
           onFinish={async (values) => {
             await handleSubmit(values as API.UserLoginRequest);
           }}
@@ -188,7 +138,6 @@ const Login: React.FC = () => {
               marginBottom: 24,
             }}
           >
-
             <Link to="/user/register">注册</Link>
           </div>
         </LoginForm>
