@@ -1,10 +1,10 @@
-import { listMyChartByPageUsingPost } from '@/services/yubi/chartController';
 import SafeChart from '@/components/SafeChart';
+import { listMyChartByPageUsingPost } from '@/services/yubi/chartController';
 import { AppstoreAddOutlined, DeleteOutlined, SaveOutlined, UndoOutlined } from '@ant-design/icons';
 import { Button, Card, Empty, message, Modal, Select, Space, Spin, Tag } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout';
 import type { Layout, Layouts } from 'react-grid-layout';
+import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -55,19 +55,13 @@ const Dashboard: React.FC = () => {
     message.success('看板布局已保存');
   }, [items, layouts]);
 
-  const handleLayoutChange = useCallback(
-    (_current: Layout[], allLayouts: Layouts) => {
-      setLayouts(allLayouts);
-    },
-    [],
-  );
+  const handleLayoutChange = useCallback((_current: Layout[], allLayouts: Layouts) => {
+    setLayouts(allLayouts);
+  }, []);
 
-  const handleRemoveItem = useCallback(
-    (chartId: number) => {
-      setItems((prev) => prev.filter((i) => i.chartId !== chartId));
-    },
-    [],
-  );
+  const handleRemoveItem = useCallback((chartId: number) => {
+    setItems((prev) => prev.filter((i) => i.chartId !== chartId));
+  }, []);
 
   const handleReset = useCallback(() => {
     Modal.confirm({

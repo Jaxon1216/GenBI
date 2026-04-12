@@ -35,7 +35,7 @@
     "tsc": "tsc --noEmit"
   },
   "lint-staged": {
-    "**/*.{js,jsx,ts,tsx}": "npm run lint-staged:js",
+    "**/*.{js,jsx,ts,tsx}": "eslint --cache --ext .js,.jsx,.ts,.tsx",
     "**/*.{js,jsx,tsx,ts,less,md,json}": [
       "prettier --write"
     ]

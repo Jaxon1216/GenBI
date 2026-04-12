@@ -1,4 +1,4 @@
-import { Result, Button } from 'antd';
+import { Button, Result } from 'antd';
 import React from 'react';
 
 interface Props {

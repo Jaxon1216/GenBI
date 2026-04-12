@@ -1,7 +1,14 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-# Export Git hook params
-export GIT_PARAMS=$*
+ROOT="$(git rev-parse --show-toplevel)"
+# verifyCommit reads this path after we cd into frontend; use absolute path
+case "$1" in
+  /*) export GIT_PARAMS="$1" ;;
+  *) export GIT_PARAMS="$ROOT/$1" ;;
+esac
 
-npx --no-install fabric verify-commit
+export PATH="$ROOT/frontend/node_modules/.bin:$PATH"
+cd "$ROOT/frontend" || exit 1
+
+exec npx --no-install fabric verify-commit

@@ -55,6 +55,7 @@ npm run prettier
 ### ESLint 配置 (`.eslintrc.js`)
 
 当前配置继承了 UmiJS 官方规范，已经包含：
+
 - React/React Hooks 规则
 - TypeScript 规则
 - 代码质量规则
@@ -72,10 +73,13 @@ module.exports = {
     // 自定义规则
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     '@typescript-eslint/no-explicit-any': 'error',
-    '@typescript-eslint/no-unused-vars': ['error', {
-      argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_',
-    }],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      },
+    ],
   },
 };
 ```
@@ -85,6 +89,7 @@ module.exports = {
 ### Prettier 配置 (`.prettierrc.js`)
 
 当前配置：
+
 - 单引号
 - 尾部逗号
 - 行宽 100
@@ -94,11 +99,11 @@ module.exports = {
 
 ```javascript
 module.exports = {
-  singleQuote: true,        // 使用单引号
-  trailingComma: 'all',     // 尾部逗号
-  printWidth: 100,          // 行宽
-  proseWrap: 'never',       // 不换行
-  endOfLine: 'lf',          // LF 换行符
+  singleQuote: true, // 使用单引号
+  trailingComma: 'all', // 尾部逗号
+  printWidth: 100, // 行宽
+  proseWrap: 'never', // 不换行
+  endOfLine: 'lf', // LF 换行符
 };
 ```
 
@@ -111,7 +116,7 @@ module.exports = {
 ```json
 {
   "compilerOptions": {
-    "strict": true,              // 严格模式
+    "strict": true, // 严格模式
     "target": "esnext",
     "module": "esnext",
     "jsx": "preserve",
@@ -128,19 +133,19 @@ module.exports = {
 ### Husky 配置
 
 **pre-commit** (`.husky/pre-commit`)：
+
 ```bash
 #!/bin/sh
 npx --no-install lint-staged
 ```
 
 **lint-staged** (`package.json`)：
+
 ```json
 {
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": "npm run lint-staged:js",
-    "**/*.{js,jsx,tsx,ts,less,md,json}": [
-      "prettier --write"
-    ]
+    "**/*.{js,jsx,tsx,ts,less,md,json}": ["prettier --write"]
   }
 }
 ```
@@ -232,11 +237,11 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'frontend/**'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'frontend/**'
 
@@ -244,88 +249,88 @@ jobs:
   lint-and-test:
     name: 代码检查和测试
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout 代码
         uses: actions/checkout@v3
-      
+
       - name: 设置 Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: 安装依赖
         working-directory: ./frontend
         run: npm ci
-      
+
       - name: ESLint 检查
         working-directory: ./frontend
         run: npm run lint:js
-      
+
       - name: Prettier 检查
         working-directory: ./frontend
         run: npm run lint:prettier
-      
+
       - name: TypeScript 类型检查
         working-directory: ./frontend
         run: npm run tsc
-      
+
       - name: 运行测试（如果有）
         working-directory: ./frontend
         run: npm run test || echo "No tests configured"
-  
+
   build:
     name: 构建项目
     runs-on: ubuntu-latest
     needs: lint-and-test
-    
+
     steps:
       - name: Checkout 代码
         uses: actions/checkout@v3
-      
+
       - name: 设置 Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: 安装依赖
         working-directory: ./frontend
         run: npm ci
-      
+
       - name: 构建项目
         working-directory: ./frontend
         run: npm run build
-      
+
       - name: 上传构建产物
         uses: actions/upload-artifact@v3
         with:
           name: dist
           path: frontend/dist
           retention-days: 7
-  
+
   docker:
     name: 构建 Docker 镜像
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout 代码
         uses: actions/checkout@v3
-      
+
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
+
       - name: 登录 Docker Hub（可选）
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      
+
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v4
         with:
@@ -353,12 +358,7 @@ jobs:
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
   },
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ]
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
 }
 ```
 
@@ -442,6 +442,7 @@ extends: [
 ### Q2: Husky 钩子不生效？
 
 **解决**：
+
 ```bash
 cd frontend
 rm -rf .husky
@@ -452,6 +453,7 @@ chmod +x .husky/*
 ### Q3: TypeScript 报错太多？
 
 **解决**：逐步修复，不要降低 `strict` 设置。使用：
+
 ```typescript
 // 临时忽略（不推荐）
 // @ts-ignore
@@ -463,6 +465,7 @@ const name = user?.name ?? 'Unknown';
 ### Q4: Docker 构建失败？
 
 **解决**：
+
 ```bash
 # 查看详细日志
 docker build --progress=plain -t genbi-frontend:test .
@@ -506,20 +509,24 @@ npm run build               # 构建生产版本
 ### 能够回答的问题
 
 1. **ESLint vs Prettier？**
+
    - ESLint: 代码质量（逻辑、最佳实践）
    - Prettier: 代码格式（缩进、引号）
 
 2. **为什么用 TypeScript？**
+
    - 编译时类型检查
    - 更好的 IDE 支持
    - 减少运行时错误
 
 3. **Husky 的作用？**
+
    - Git 钩子管理
    - 提交前自动检查
    - 保证代码质量
 
 4. **Docker 的优势？**
+
    - 环境一致性
    - 快速部署
    - 易于扩展
@@ -534,11 +541,13 @@ npm run build               # 构建生产版本
 ## 📝 简历写法
 
 **技术栈**
+
 - 熟练使用 ESLint + Prettier + TypeScript + Husky 保障代码质量
 - 使用 Docker 容器化部署，GitHub Actions 实现 CI/CD
 - 搭建完整的前端工程化体系
 
 **项目经验 - GenBI 智能 BI 平台**
+
 - 搭建代码质量保障体系（ESLint、Prettier、TypeScript、Husky）
 - 配置 Git Hooks 实现提交前自动检查，确保代码质量
 - 使用 Docker 容器化部署，GitHub Actions 实现 CI/CD 自动化

@@ -1,9 +1,9 @@
 import { genChartByAiAsyncUsingPost } from '@/services/yubi/chartController';
 import { UploadOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import { Button, Card, Col, Form, Input, message, Row, Select, Space, Upload } from 'antd';
 import { useForm } from 'antd/es/form/Form';
 import TextArea from 'antd/es/input/TextArea';
-import { history } from '@umijs/max';
 import React, { useState } from 'react';
 
 const AddChartAsync: React.FC = () => {
@@ -47,7 +47,11 @@ const AddChartAsync: React.FC = () => {
               onFinish={onFinish}
               initialValues={{}}
             >
-              <Form.Item name="goal" label="分析目标" rules={[{ required: true, message: '请输入分析目标!' }]}>
+              <Form.Item
+                name="goal"
+                label="分析目标"
+                rules={[{ required: true, message: '请输入分析目标!' }]}
+              >
                 <TextArea placeholder="请输入你的分析需求，比如：分析网站用户的增长情况" />
               </Form.Item>
 
@@ -75,7 +79,12 @@ const AddChartAsync: React.FC = () => {
 
               <Form.Item wrapperCol={{ span: 16, offset: 4 }}>
                 <Space>
-                  <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={submitting}
+                    disabled={submitting}
+                  >
                     提交
                   </Button>
                   <Button htmlType="reset">重置</Button>

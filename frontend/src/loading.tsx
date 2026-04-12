@@ -1,4 +1,4 @@
-import { Skeleton, Card, Row, Col } from 'antd';
+import { Card, Col, Row, Skeleton } from 'antd';
 import React from 'react';
 
 const PageLoading: React.FC = () => (

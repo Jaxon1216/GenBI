@@ -1,15 +1,8 @@
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import '@umijs/max';
 export type SiderTheme = 'light' | 'dark';
-export const SelectLang = () => {
-  return (
-    <UmiSelectLang
-      style={{
-        padding: 4,
-      }}
-    />
-  );
-};
+
+// SelectLang 组件已移除，如需使用请安装 @umijs/max 的国际化插件
 export const Question = () => {
   return (
     <div

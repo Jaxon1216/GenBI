@@ -43,35 +43,35 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'frontend/**'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: 安装依赖
         working-directory: ./frontend
         run: npm ci
-      
+
       - name: 代码检查
         working-directory: ./frontend
         run: |
           npm run lint:js
           npm run lint:prettier
           npm run tsc
-      
+
       - name: 构建
         working-directory: ./frontend
         run: npm run build
@@ -298,16 +298,19 @@ npm run build               # 构建
 ## 🎯 预期效果总结
 
 ### ✅ 本地开发
+
 - 保存文件时自动格式化（VSCode）
 - 提交代码时自动检查（Husky）
 - 类型错误实时提示（TypeScript）
 
 ### ✅ Docker
+
 - 构建时自动运行代码检查
 - 代码有问题时构建失败
 - 生产环境使用 Nginx 部署
 
 ### ✅ GitHub Actions
+
 - 推送代码时自动运行 CI
 - 检查失败时阻止合并
 - 构建产物自动上传
@@ -317,6 +320,7 @@ npm run build               # 构建
 ## 🐛 常见问题
 
 ### Husky 不工作？
+
 ```bash
 cd frontend
 rm -rf .husky
@@ -325,14 +329,16 @@ chmod +x .husky/*
 ```
 
 ### Docker 构建失败？
+
 ```bash
 # 查看详细日志
 docker build --progress=plain -t genbi-frontend .
 ```
 
 ### GitHub Actions 失败？
+
 - 检查 Node.js 版本（需要 18）
-- 检查路径配置（frontend/**）
+- 检查路径配置（frontend/\*\*）
 - 查看 Actions 日志
 
 ---

@@ -1,10 +1,20 @@
 export default [
-  { name:'登录',path: '/user', layout: false, routes: [{ path: '/user/login', component: './User/Login' }] },
-  { name:'欢迎页面',path: '/welcome', icon: 'smile', component: './Welcome' },
-  { name:'添加图表',path:'/add_chart',icon: 'signalFilled', component: './AddChart' },
-  { name:'添加图表（异步版）',path:'/add_chart_async',icon: 'signalFilled', component: './AddChartAsync' },
-  { name:'我的图表',path:'/my_chart',icon: 'appleOutlined', component: './myChart' },
-  { name:'数据看板',path:'/dashboard',icon: 'dashboardOutlined', component: './Dashboard' },
+  {
+    name: '登录',
+    path: '/user',
+    layout: false,
+    routes: [{ path: '/user/login', component: './User/Login' }],
+  },
+  { name: '欢迎页面', path: '/welcome', icon: 'smile', component: './Welcome' },
+  { name: '添加图表', path: '/add_chart', icon: 'signalFilled', component: './AddChart' },
+  {
+    name: '添加图表（异步版）',
+    path: '/add_chart_async',
+    icon: 'signalFilled',
+    component: './AddChartAsync',
+  },
+  { name: '我的图表', path: '/my_chart', icon: 'appleOutlined', component: './myChart' },
+  { name: '数据看板', path: '/dashboard', icon: 'dashboardOutlined', component: './Dashboard' },
   {
     path: '/admin',
     icon: 'crown',
@@ -15,7 +25,7 @@ export default [
       { path: '/admin/sub-page', name: '管理页面2', component: './Admin' },
     ],
   },
-  { name:'表格页面',icon: 'table', path: '/list', component: './TableList' },
+  { name: '表格页面', icon: 'table', path: '/list', component: './TableList' },
   { path: '/', redirect: '/welcome' },
   { path: '*', layout: false, component: './404' },
 ];

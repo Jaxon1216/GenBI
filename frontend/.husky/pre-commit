@@ -1,4 +1,9 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-npx --no-install lint-staged
+# lint-staged runs from repo root; prettier/eslint live under frontend/node_modules/.bin
+ROOT="$(git rev-parse --show-toplevel)"
+export PATH="$ROOT/frontend/node_modules/.bin:$PATH"
+cd "$ROOT" || exit 1
+
+exec npx --yes lint-staged
