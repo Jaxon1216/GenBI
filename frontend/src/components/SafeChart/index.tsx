@@ -1,6 +1,6 @@
 import ChartErrorBoundary from '@/components/ChartErrorBoundary';
 import { parseChartOption } from '@/utils/chartSchema';
-import { Alert, Button } from 'antd';
+import { Alert } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import React, { useMemo } from 'react';
 
@@ -32,13 +32,6 @@ const SafeChart: React.FC<SafeChartProps> = ({
             type="warning"
             showIcon
             style={{ marginBottom: 8 }}
-            action={
-              onRetry ? (
-                <Button size="small" type="primary" onClick={onRetry}>
-                  重试
-                </Button>
-              ) : undefined
-            }
           />
           <ChartErrorBoundary onRetry={onRetry}>
             <ReactECharts option={result.fallbackOption} style={style} />
@@ -46,21 +39,7 @@ const SafeChart: React.FC<SafeChartProps> = ({
         </>
       );
     }
-    return (
-      <Alert
-        message="图表渲染失败"
-        description={result.error}
-        type="error"
-        showIcon
-        action={
-          onRetry ? (
-            <Button size="small" type="primary" onClick={onRetry}>
-              重试
-            </Button>
-          ) : undefined
-        }
-      />
-    );
+    return <Alert message="图表渲染失败" description={result.error} type="error" showIcon />;
   }
 
   return (

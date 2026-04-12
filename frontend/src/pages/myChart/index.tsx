@@ -173,13 +173,7 @@ const MyChartPage: React.FC = () => {
                       <div style={{ marginBottom: 16 }} />
                       <p>{'分析目标：' + item.goal}</p>
                       <div style={{ marginBottom: 16 }} />
-                      <SafeChart
-                        rawChartJson={item.genChart}
-                        stripTitle
-                        onRetry={() => {
-                          void loadData(true);
-                        }}
-                      />
+                      <SafeChart rawChartJson={item.genChart} stripTitle />
                       {item.chartData && (
                         <Button
                           type="link"
