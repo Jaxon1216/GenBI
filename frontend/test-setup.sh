@@ -19,7 +19,7 @@ echo ""
 # 测试 1: 检查配置文件
 echo "📝 测试 1: 检查配置文件"
 echo "--------------------------------"
-files=(".eslintrc.js" ".prettierrc.js" "tsconfig.json" "Dockerfile" ".dockerignore" ".vscode/settings.json")
+files=(".eslintrc.js" ".prettierrc.js" "tsconfig.json" ".vscode/settings.json")
 for file in "${files[@]}"; do
     if [ -f "$file" ]; then
         echo "   ✅ $file"
@@ -62,18 +62,6 @@ else
 fi
 echo ""
 
-# 测试 4: 测试 Docker
-echo "🐳 测试 4: 测试 Docker"
-echo "--------------------------------"
-if command -v docker &> /dev/null; then
-    echo "✅ Docker 已安装"
-    echo "   可以运行: docker build -t genbi-frontend ."
-else
-    echo "❌ Docker 未安装"
-    echo "   请访问: https://www.docker.com/get-started"
-fi
-echo ""
-
 # 总结
 echo "================================"
 echo "🎉 测试完成！"
@@ -86,5 +74,4 @@ echo ""
 echo "🚀 快速命令："
 echo "   npm run lint              # 完整检查"
 echo "   npm run lint:fix          # 自动修复"
-echo "   docker build -t genbi-frontend .  # 构建 Docker 镜像"
 echo ""
