@@ -7,12 +7,13 @@ frontend/.umi-test/
 frontend/coverage/
 frontend/.eslintcache
 
-# === Backend ===
-backend/target/
-backend/.idea/
-backend/*.iws
-backend/*.iml
-backend/*.ipr
+# 误提交的游离依赖（根目录无 package.json）
+node_modules/
+
+# === Backend (Go) ===
+backend/.env
+backend/bin/
+backend/*.exe
 
 # === General ===
 .DS_Store
