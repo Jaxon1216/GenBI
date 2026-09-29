@@ -11,6 +11,7 @@ genbi-consumer
 
 # Go
 vendor/
+.go-version
 
 # IDE / OS
 .idea/
