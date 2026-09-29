@@ -11,7 +11,7 @@
 | 层 | 技术 |
 |---|---|
 | 前端 | React 18、Ant Design Pro、UmiJS Max、TypeScript、ECharts |
-| 后端 | Spring Boot 2.7、MyBatis-Plus、MySQL |
+| 后端 | Go 1.24、Gin、GORM、MySQL、Redis（会话/限流）、RabbitMQ（异步）、DeepSeek |
 | 校验 | 前端对 AI 返回的图表 JSON 做 Zod 结构校验与安全过滤 |
 
 ## 仓库结构
@@ -29,16 +29,20 @@ GenBI/
 ### 环境
 
 - Node.js 16+
-- Java 8、Maven
-- MySQL 8.0，并创建数据库 `yubi`
+- Go 1.24+
+- MySQL 8，创建数据库并执行 `backend/sql/create_table.sql`
+- Redis：`brew install redis && brew services start redis`
+- RabbitMQ：`brew install rabbitmq && brew services start rabbitmq`
 
 ### 端口（开发）
 
 | 端口 | 说明 |
 |------|------|
-| 12345 | 后端 API（`application.yml` dev） |
+| 8080 | 后端 API（前端 dev 代理写死到该端口） |
 | 8000 | 前端开发服务器 |
 | 3306 | MySQL |
+| 6379 | Redis |
+| 5672 | RabbitMQ |
 
 ### 数据库
 
@@ -51,12 +55,12 @@ source backend/sql/create_table.sql;
 
 ```bash
 cd backend
-mvn spring-boot:run
+cp .env.example .env    # 按需修改 DB_DSN / DEEPSEEK_API_KEY 等
+make run                # 启动 HTTP 服务（:8080）
+make consumer           # 另开终端，启动 RabbitMQ 异步消费者
 ```
 
-启动后可访问接口文档：http://localhost:12345/api/doc.html  
-
-Swagger JSON（用于前端 codegen）：http://localhost:12345/api/v2/api-docs  
+详见 [`backend/README.md`](./backend/README.md)。
 
 ### 前端
 
@@ -66,9 +70,7 @@ npm install
 npm run dev
 ```
 
-默认访问：http://localhost:8000  
-
-开发环境下若需把 `/api` 代理到本机后端，请在 `frontend` 中按需配置代理（例如取消 `proxy` 相关注释），使请求转发到 `http://localhost:12345`。
+默认访问：http://localhost:8000 。dev 模式下 `/api` 已代理到 `http://localhost:8080`。
 
 ### 生成前端 API 代码
 
@@ -81,7 +83,7 @@ npm run openapi
 
 ### 账号
 
-通过接口注册后登录（例如 Knife4j 中调用用户注册接口），具体以当前后端路由为准。
+通过接口注册后登录，具体以当前后端路由为准。
 
 ## Git 提交说明（约定式）
 
