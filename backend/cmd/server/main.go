@@ -56,12 +56,16 @@ func main() {
 		log.Printf("[server] outbox relay 未启动（enabled=%v, producer=%v）", cfg.OutboxRelayEnabled, producer != nil)
 	}
 
+	// SSE 推送处理器（wt-sse）：复用 server 已装配的 Redis，订阅图表状态变更事件频道。
+	sseHandler := handler.NewSSEHandler(rdb, chartService, cfg.ChartEventsChannel)
+
 	r := bootstrap.NewRouter(bootstrap.RouterDeps{
 		Cfg:          cfg,
 		Store:        store,
 		DB:           db,
 		UserHandler:  userHandler,
 		ChartHandler: chartHandler,
+		SSEHandler:   sseHandler,
 	})
 
 	addr := ":" + cfg.Port
