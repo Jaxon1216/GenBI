@@ -13,6 +13,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// ErrAlreadyProcessed 幂等哨兵错误。
+//
+// ProcessChart 用「状态 CAS」抢占任务：UPDATE ... WHERE id=? AND status='wait'。
+// 若未命中（RowsAffected==0），说明该图表已被其它消费者/重复投递的消息处理过
+// （已不是 wait），此时返回本错误。consumer 用 errors.Is 识别后应直接 ack 跳过，
+// 不重试、不 MarkFailed、不发状态事件，从而保证「重复消息不重复生成」。
+var ErrAlreadyProcessed = errors.New("chart already processed")
+
 // ChartService 图表业务。
 type ChartService struct {
 	db       *gorm.DB
@@ -207,22 +215,41 @@ func (s *ChartService) SaveWait(userID int64, req *dto.GenChartByAiRequest, csvD
 	return chart.ID, nil
 }
 
-// ProcessChart 消费者处理逻辑：置 running → 调 AI → 清洗 → 置 succeed。
-// 任一步失败返回 error（由消费者按重试/兜底策略处理）。
+// classifyCASResult 把「置 running」CAS 的执行结果归类为需要返回给 consumer 的错误。
+// 抽成纯函数便于单测（无 DB 依赖）：
+//   - err != nil             → 返回更新失败的业务错误；
+//   - rowsAffected == 0      → 没抢到（已被处理过），返回 ErrAlreadyProcessed 哨兵；
+//   - 否则（抢到 1 行）       → 返回 nil，继续生成。
+func classifyCASResult(err error, rowsAffected int64) error {
+	if err != nil {
+		return common.NewBusinessError(common.OPERATION_ERROR, "图表状态更新为running失败")
+	}
+	if rowsAffected == 0 {
+		return ErrAlreadyProcessed
+	}
+	return nil
+}
+
+// ProcessChart 消费者处理逻辑：CAS 抢占置 running → 调 AI → 清洗 → 置 succeed。
+// 任一步失败返回 error（由消费者按重试/兜底策略处理）；
+// 若 CAS 未抢到（重复消息/并发消费）返回 ErrAlreadyProcessed，消费者应直接 ack 跳过。
 //
 // ctx 由 consumer.handle 用 context.WithTimeout 包装后传入，一路透传到 AI 调用，
 // 使生成可被超时/取消打断（wt-timeout 负责）。
-// 「置 running」处的 CAS 幂等改造由 wt-reliable 负责；两者各改各自区段，互不重叠。
 func (s *ChartService) ProcessChart(ctx context.Context, chartID int64) error {
 	var chart model.Chart
 	if err := s.db.Where("id = ?", chartID).First(&chart).Error; err != nil {
 		return common.NewBusinessError(common.NOT_FOUND_ERROR, "图表不存在")
 	}
 
-	// 置为执行中
-	if err := s.db.Model(&model.Chart{}).Where("id = ?", chartID).
-		Update("status", model.ChartStatusRunning).Error; err != nil {
-		return common.NewBusinessError(common.OPERATION_ERROR, "图表状态更新为running失败")
+	// 幂等 CAS 抢占：只有当前仍是 wait 时才能把状态推进到 running。
+	// WHERE 带 status='wait' 条件，靠数据库行级原子性保证「只有一个消费者能抢到」，
+	// 重复消息/并发消费只会命中 0 行 → 返回 ErrAlreadyProcessed，不重复生成。
+	res := s.db.Model(&model.Chart{}).
+		Where("id = ? AND status = ?", chartID, model.ChartStatusWait).
+		Update("status", model.ChartStatusRunning)
+	if err := classifyCASResult(res.Error, res.RowsAffected); err != nil {
+		return err
 	}
 
 	prompt := BuildPrompt(chart.Goal, chart.ChartType, chart.ChartData)

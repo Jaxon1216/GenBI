@@ -32,14 +32,40 @@ func NewClient(url string) (*Client, error) {
 	return &Client{Conn: conn, Channel: ch}, nil
 }
 
-// declareTopology 声明 direct exchange、持久化 queue 并绑定（与 Java InitMain 一致）。
+// declareTopology 声明主拓扑 + 死信拓扑（在 Java InitMain 基础上增加死信能力）。
+//
+// 主队列 BI_Queue.v2 带 x-dead-letter-exchange 参数：当消息被 Nack(requeue=false)
+// 或过期时，RabbitMQ 会把它投递到死信 exchange，再路由进死信队列保留，便于排查。
 func declareTopology(ch *amqp.Channel) error {
+	// 1. 主 direct exchange（durable，不变）。
 	if err := ch.ExchangeDeclare(ExchangeName, "direct", true, false, false, false, nil); err != nil {
 		return err
 	}
-	if _, err := ch.QueueDeclare(QueueName, true, false, false, false, nil); err != nil {
+
+	// 2. 死信 exchange（direct，durable）。
+	if err := ch.ExchangeDeclare(DeadLetterExchangeName, "direct", true, false, false, false, nil); err != nil {
 		return err
 	}
+
+	// 3. 死信队列（durable）并绑定到死信 exchange。
+	if _, err := ch.QueueDeclare(DeadLetterQueueName, true, false, false, false, nil); err != nil {
+		return err
+	}
+	if err := ch.QueueBind(DeadLetterQueueName, DeadLetterRoutingKey, DeadLetterExchangeName, false, nil); err != nil {
+		return err
+	}
+
+	// 4. 主队列（durable）声明死信参数，指向死信 exchange / routingKey。
+	//    注意：队列参数一旦声明不可变，故主队列已换新名 BI_Queue.v2（见 constant.go 说明）。
+	mainArgs := amqp.Table{
+		"x-dead-letter-exchange":    DeadLetterExchangeName,
+		"x-dead-letter-routing-key": DeadLetterRoutingKey,
+	}
+	if _, err := ch.QueueDeclare(QueueName, true, false, false, false, mainArgs); err != nil {
+		return err
+	}
+
+	// 5. 主队列绑定到主 exchange（routingKey 不变，端到端链路不变）。
 	return ch.QueueBind(QueueName, RoutingKey, ExchangeName, false, nil)
 }
 

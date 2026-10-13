@@ -2,12 +2,14 @@ package mq
 
 import (
 	"context"
+	"errors"
 	"log"
 	"strconv"
 	"time"
 
 	"genbi-go-backend/internal/event"
 	"genbi-go-backend/internal/model"
+	"genbi-go-backend/internal/service"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -73,8 +75,18 @@ func (c *Consumer) handle(d amqp.Delivery) {
 	const maxAttempts = 2
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		if lastErr = c.processor.ProcessChart(ctx, chartID); lastErr == nil {
+		lastErr = c.processor.ProcessChart(ctx, chartID)
+		if lastErr == nil {
 			break
+		}
+		// 幂等命中：该图表已被其它消费者/重复消息处理过（CAS 未抢到）。
+		// 直接 ack 跳过，不重试、不 MarkFailed、不发状态事件，避免重复生成与误发事件。
+		if errors.Is(lastErr, service.ErrAlreadyProcessed) {
+			log.Printf("[consumer] 图表id:%d 已被处理（幂等跳过），确认消息", chartID)
+			if err := d.Ack(false); err != nil {
+				log.Printf("[consumer] 确认消息失败：%v", err)
+			}
+			return
 		}
 		log.Printf("[consumer] 图表id:%d 第 %d 次处理失败：%v", chartID, attempt, lastErr)
 		if attempt < maxAttempts {
@@ -95,16 +107,17 @@ func (c *Consumer) handle(d amqp.Delivery) {
 	}
 }
 
-// onExhausted 重试耗尽后的兜底处理点（Phase 0 预留的扩展点）。
-// 默认实现：MarkFailed + 发布 failed 事件 + ack 丢弃。
-// wt-reliable 会把下方的 d.Ack(false) 改为 d.Nack(false, false) 使毒消息进入死信队列。
+// onExhausted 重试耗尽后的兜底处理点。
+// 实现：先 MarkFailed + 发布 failed 事件（保留原有可观测性），
+// 再 Nack(requeue=false) 让这条毒消息经主队列的 x-dead-letter-exchange 进入死信队列，
+// 可留存排查而非直接丢弃。
 func (c *Consumer) onExhausted(d amqp.Delivery, chartID int64, lastErr error) {
 	log.Printf("[consumer] 图表id:%d 处理失败，已达最大重试次数", chartID)
 	c.processor.MarkFailed(chartID, "AI 生成图表失败："+lastErr.Error())
 	c.publisher.PublishChartEvent(context.Background(), chartID, model.ChartStatusFailed)
 
-	// 默认：确认消息移出队列（对齐 Java 手动 ack 逻辑）。
-	if err := d.Ack(false); err != nil {
-		log.Printf("[consumer] 确认消息失败：%v", err)
+	// Nack 且 requeue=false：不重回主队列，交由死信 exchange 投递进死信队列保留。
+	if err := d.Nack(false, false); err != nil {
+		log.Printf("[consumer] Nack 消息失败：%v", err)
 	}
 }
