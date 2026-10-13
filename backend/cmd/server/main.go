@@ -2,12 +2,14 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"genbi-go-backend/internal/bootstrap"
 	"genbi-go-backend/internal/config"
 	"genbi-go-backend/internal/handler"
 	"genbi-go-backend/internal/mq"
+	"genbi-go-backend/internal/outbox"
 	"genbi-go-backend/internal/ratelimit"
 	"genbi-go-backend/internal/service"
 )
@@ -43,6 +45,16 @@ func main() {
 	}
 
 	chartHandler := handler.NewChartHandler(chartService, limiter, producer)
+
+	// 事务消息表（outbox）relay：GenAsync 已把投递落到 outbox，这里启动后台 goroutine 轮询补发。
+	// 仅在启用且 producer 非 nil（RabbitMQ 连通）时启动，连接失败时与现有 /gen/async 一样降级为不启动。
+	if cfg.OutboxRelayEnabled && producer != nil {
+		relay := outbox.NewRelay(db, producer)
+		go relay.Start(context.Background(), cfg.OutboxRelayInterval)
+		log.Printf("[server] outbox relay 已启动，轮询间隔 %s", cfg.OutboxRelayInterval)
+	} else {
+		log.Printf("[server] outbox relay 未启动（enabled=%v, producer=%v）", cfg.OutboxRelayEnabled, producer != nil)
+	}
 
 	r := bootstrap.NewRouter(bootstrap.RouterDeps{
 		Cfg:          cfg,

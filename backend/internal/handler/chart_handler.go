@@ -165,7 +165,9 @@ func (h *ChartHandler) Gen(c *gin.Context) {
 }
 
 // GenAsync POST /api/chart/gen/async —— multipart 异步 AI 生成。
-// 入库为 wait 后发消息到 RabbitMQ，返回 chartId；由消费者异步生成。
+// 事务消息表（outbox）改造：在同一个 DB 事务里写 chart(wait) + outbox(pending)，立即返回 chartId；
+// 真正的 MQ 投递由 server 进程内的 outbox relay 轮询补发，handler 不再直接 Publish，
+// 从根上消除「入库成功但发消息失败 → 任务永远 wait」的双写不一致。
 func (h *ChartHandler) GenAsync(c *gin.Context) {
 	user := middleware.GetLoginUser(c)
 
@@ -174,6 +176,8 @@ func (h *ChartHandler) GenAsync(c *gin.Context) {
 		return
 	}
 
+	// producer 为 nil 说明 RabbitMQ 未连通，relay 无法补发投递，异步链路整体不可用，
+	// 这里仍以此作为「异步服务是否启用」的判断，避免消息只落库却永远发不出去。
 	if h.producer == nil {
 		failCode(c, common.SYSTEM_ERROR, "异步服务未启用")
 		return
@@ -190,13 +194,10 @@ func (h *ChartHandler) GenAsync(c *gin.Context) {
 		return
 	}
 
+	// 入库 chart(wait) + outbox(pending) 原子完成；投递交给 relay，不在此处 Publish。
 	chartID, err := h.chartService.SaveWait(user.ID, req, csvData)
 	if err != nil {
 		fail(c, err)
-		return
-	}
-	if err := h.producer.Publish(strconv.FormatInt(chartID, 10)); err != nil {
-		failCode(c, common.SYSTEM_ERROR, "任务提交失败")
 		return
 	}
 	ok(c, chartID)
