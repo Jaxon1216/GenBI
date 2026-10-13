@@ -1,6 +1,7 @@
 import ChartCardSkeleton from '@/components/ChartCardSkeleton';
 import SafeChart from '@/components/SafeChart';
 import VirtualDataTable from '@/components/VirtualDataTable';
+import { useChartEvents } from '@/hooks/useChartEvents';
 import { usePolling } from '@/hooks/usePolling';
 import { listMyChartByPageUsingPost } from '@/services/yubi/chartController';
 import { useModel } from '@@/exports';
@@ -30,6 +31,8 @@ const MyChartPage: React.FC = () => {
   // 用来控制页面是否加载
   const [loading, setLoading] = useState<boolean>(true);
   const [dataModalChart, setDataModalChart] = useState<API.Chart | null>(null);
+  // SSE 不可用时置 true，启用 usePolling 兜底（默认先给轮询，待 SSE 建连成功再关掉）
+  const [sseFallback, setSseFallback] = useState<boolean>(true);
 
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -47,20 +50,40 @@ const MyChartPage: React.FC = () => {
     if (!silent) setLoading(false);
   };
 
-  const hasPendingCharts = useMemo(
-    () => chartList?.some((c) => c.status === 'wait' || c.status === 'running') ?? false,
+  // 处于 wait/running 的图表 id 列表（SSE 按这些 id 分别建连）
+  const pendingChartIds = useMemo(
+    () =>
+      chartList
+        ?.filter((c) => c.status === 'wait' || c.status === 'running')
+        .map((c) => c.id)
+        .filter((id): id is number => typeof id === 'number') ?? [],
     [chartList],
   );
+
+  const hasPendingCharts = pendingChartIds.length > 0;
 
   const pollCallback = useCallback(async () => {
     await loadData(true);
   }, [searchParams]);
 
+  // 轮询兜底：仅在「有 pending 图表」且「SSE 当前不可用」时启用
   const { reportDataSnapshot } = usePolling(pollCallback, {
-    enabled: hasPendingCharts,
+    enabled: hasPendingCharts && sseFallback,
     baseInterval: 3000,
     maxInterval: 30000,
   });
+
+  // SSE 实时推送：优先链路。收到 succeed/failed 事件时静默刷新该页数据
+  useChartEvents(
+    pendingChartIds,
+    useCallback(() => {
+      loadData(true);
+    }, [searchParams]),
+    {
+      enabled: hasPendingCharts,
+      onFallback: setSseFallback,
+    },
+  );
 
   useEffect(() => {
     if (chartList) {

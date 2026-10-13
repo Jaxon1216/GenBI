@@ -17,6 +17,8 @@ type RouterDeps struct {
 	DB           *gorm.DB
 	UserHandler  *handler.UserHandler
 	ChartHandler *handler.ChartHandler
+	// SSEHandler 图表状态变更的 SSE 推送处理器（wt-sse）。可为 nil（未启用 SSE 时不注册该路由）。
+	SSEHandler *handler.SSEHandler
 }
 
 // NewRouter 装配 gin 引擎：全局中间件 + /api 路由组（health + user）。
@@ -62,6 +64,10 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		ch.POST("/update", admin, deps.ChartHandler.Update)
 		ch.POST("/gen", deps.ChartHandler.Gen)
 		ch.POST("/gen/async", deps.ChartHandler.GenAsync)
+		// SSE 实时推送（wt-sse）：需登录；仅在装配了 SSEHandler 时注册。
+		if deps.SSEHandler != nil {
+			ch.GET("/sse", deps.SSEHandler.Stream)
+		}
 	}
 
 	return r
