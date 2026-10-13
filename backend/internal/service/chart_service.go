@@ -228,6 +228,10 @@ func (s *ChartService) ProcessChart(ctx context.Context, chartID int64) error {
 	prompt := BuildPrompt(chart.Goal, chart.ChartType, chart.ChartData)
 	aiResult, err := s.deepSeek.AnalyzeCsv(ctx, prompt)
 	if err != nil {
+		// ctx 超时时精准落「生成超时」，便于 execMessage 直观体现；其余按原逻辑透传底层错误。
+		if errors.Is(err, context.DeadlineExceeded) {
+			return common.NewBusinessError(common.OPERATION_ERROR, "生成超时")
+		}
 		return common.NewBusinessError(common.OPERATION_ERROR, "AI 生成图表失败："+err.Error())
 	}
 	genChart := util.CleanEchartsJSON(aiResult.GenChart)

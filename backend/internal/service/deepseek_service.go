@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -48,9 +49,15 @@ func NewDeepSeekService(apiKey, baseURL string) *DeepSeekService {
 
 // AnalyzeCsv 调用 DeepSeek 分析（prompt 已由调用方拼好），返回解析后的结果。
 //
-// ctx 用于超时/取消控制（Phase 0 骨架：此处先接收 ctx，由 wt-timeout 接入
-// http.NewRequestWithContext 使其真正可被打断；在此之前客户端仍有 60s 兜底）。
+// ctx 用于超时/取消控制：通过 http.NewRequestWithContext 接入请求，使 AI 调用
+// 可被 ctx 超时/取消「真正打断」（底层连接会被关闭），而非仅靠 client 的 60s 兜底。
+// 当 ctx 超时/取消时，返回的 error 用 context.DeadlineExceeded / context.Canceled
+// 包装，保证上层 errors.Is 可识别为「生成超时 / 已取消」。
 func (s *DeepSeekService) AnalyzeCsv(ctx context.Context, prompt string) (*AiResult, error) {
+	if ctx == nil {
+		// 兜底：Phase 0 调用方均传入非 nil ctx，此处仅防御 http.NewRequestWithContext 对 nil 的 panic。
+		ctx = context.Background()
+	}
 	if s.apiKey == "" {
 		return nil, errors.New("DeepSeek API key 未配置")
 	}
@@ -66,21 +73,29 @@ func (s *DeepSeekService) AnalyzeCsv(ctx context.Context, prompt string) (*AiRes
 	}
 	payload, _ := json.Marshal(reqBody)
 
-	req, err := http.NewRequest(http.MethodPost, s.baseURL+"/v1/chat/completions", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+"/v1/chat/completions", bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
-	_ = ctx // Phase 0 占位：ctx 暂未接入请求，由 wt-timeout 改为 http.NewRequestWithContext
 
 	resp, err := s.client.Do(req)
 	if err != nil {
+		// ctx 超时/取消时，client.Do 返回包装了 context.DeadlineExceeded / context.Canceled 的 error；
+		// 归一化为「可识别」错误，确保上层 errors.Is(err, context.DeadlineExceeded) 为真。
+		if ctxErr := wrapCtxError(ctx, err); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 	defer resp.Body.Close()
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		// 读取响应体期间 ctx 被打断，同样归一化。
+		if ctxErr := wrapCtxError(ctx, err); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 
@@ -125,4 +140,26 @@ func rawToString(raw json.RawMessage) string {
 		return str
 	}
 	return string(raw)
+}
+
+// wrapCtxError 在请求出错时判断是否由 ctx 超时/取消引起，若是则返回「可识别」的中文错误：
+//   - 超时：fmt.Errorf("生成超时: %w", context.DeadlineExceeded)，errors.Is(err, context.DeadlineExceeded) 为真；
+//   - 取消：fmt.Errorf("生成已取消: %w", context.Canceled)，errors.Is(err, context.Canceled) 为真。
+//
+// 既优先依据 ctx.Err()（最可靠），也兜底识别 client.Do 返回的包装错误，返回 nil 表示非 ctx 原因。
+func wrapCtxError(ctx context.Context, err error) error {
+	switch ctx.Err() {
+	case context.DeadlineExceeded:
+		return fmt.Errorf("生成超时: %w", context.DeadlineExceeded)
+	case context.Canceled:
+		return fmt.Errorf("生成已取消: %w", context.Canceled)
+	}
+	// ctx.Err() 为空的边界情况：直接检查底层 error 是否包装了 ctx 错误。
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("生成超时: %w", context.DeadlineExceeded)
+	}
+	if errors.Is(err, context.Canceled) {
+		return fmt.Errorf("生成已取消: %w", context.Canceled)
+	}
+	return nil
 }
