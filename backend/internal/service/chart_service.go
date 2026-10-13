@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"genbi-go-backend/internal/common"
 	"genbi-go-backend/internal/dto"
@@ -191,7 +192,11 @@ func (s *ChartService) GenSync(ctx context.Context, userID int64, req *dto.GenCh
 	}, nil
 }
 
-// SaveWait 异步生成第一步：先入库为 wait 状态，返回新 chartId（由 handler 发消息）。
+// SaveWait 异步生成第一步：在「同一个 DB 事务」里写入 chart(wait) + outbox(pending)，返回新 chartId。
+//
+// 事务消息表（outbox）改造：业务入库与「待投递消息落库」原子化——要么同时成功、要么同时回滚，
+// 消除了原先「入库成功但发 MQ 失败 → 任务永远 wait」的双写不一致；真正的 MQ 投递交给 relay 补发。
+// handler 不再直接 Publish。保持 (int64, error) 签名不变（handler 仍需 chartId 回包）。
 func (s *ChartService) SaveWait(userID int64, req *dto.GenChartByAiRequest, csvData string) (int64, error) {
 	chart := &model.Chart{
 		UserID:    userID,
@@ -201,7 +206,23 @@ func (s *ChartService) SaveWait(userID int64, req *dto.GenChartByAiRequest, csvD
 		ChartData: csvData,
 		Status:    model.ChartStatusWait,
 	}
-	if err := s.db.Create(chart).Error; err != nil {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// 1) 入库 chart(wait)，chart.ID 由自增主键回填。
+		if err := tx.Create(chart).Error; err != nil {
+			return err
+		}
+		// 2) 用 chart.ID 作为 aggregateId 与 payload，落一条 outbox(pending)，供 relay 补发。
+		msg := &model.Outbox{
+			AggregateID: chart.ID,
+			Payload:     strconv.FormatInt(chart.ID, 10),
+			Status:      model.OutboxStatusPending,
+		}
+		if err := tx.Create(msg).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return 0, common.NewBusinessError(common.OPERATION_ERROR, "图表信息保存失败！")
 	}
 	return chart.ID, nil
