@@ -37,16 +37,41 @@ HTTP 请求
 ## 异步（RabbitMQ）
 
 - 库：`github.com/rabbitmq/amqp091-go`。
-- 拓扑（与 Java `Constant` 一致）：
+- 拓扑（主队列已换新名以支持死信，见下）：
   - exchange：`BI_exchange`（direct，durable）
-  - queue：`BI_Queue`（durable）
+  - queue：`BI_Queue.v2`（durable，带 `x-dead-letter-exchange` 参数）
   - routing key：`BI_routingkey`
-- 生产者（server 进程内）：`/gen/async` 先入库 `status=wait`，再 `Publish` 消息体为 `chartId`（`DeliveryMode=Persistent`）。
+  - 死信：exchange `BI_exchange.DLX` + queue `BI_Queue.DLX` + routing key `BI_routingkey.DLX`
+- 生产者（server 进程内）：`/gen/async` 不再直接发消息，改走 **Outbox**（见下）；由 relay 补发消息体为 `chartId`（`DeliveryMode=Persistent`）。
 - 消费者（`cmd/consumer` 独立进程）：
   - `channel.Qos(prefetch=1)`，`Consume(autoAck=false)` → **手动 ack**。
-  - 处理：置 `running` → 调 DeepSeek → 清洗 ECharts → 置 `succeed`（写 genChart/genResult）或 `failed`（写 execMessage）。
-  - 重试：应用层最多 2 次、间隔 2s（对标 `@Retryable(maxAttempts=2, backoff=2000)`）；耗尽后置 `failed`（对标 `@Recover`）。
-  - 无论成败，最终 `Ack` 移出队列（对齐 Java 手动 ack 逻辑）。
+  - 处理：**CAS 抢占** `wait→running` → 调 DeepSeek（**带 ctx 超时**）→ 清洗 ECharts → 置 `succeed`（写 genChart/genResult）或 `failed`（写 execMessage）。
+  - **幂等消费**：置 running 用 `UPDATE chart SET status='running' WHERE id=? AND status='wait'`，`RowsAffected==0` 返回哨兵 `ErrAlreadyProcessed`，消费者直接 ack 跳过，重复消息不重复生成。
+  - 重试：应用层最多 2 次、间隔 2s（对标 `@Retryable(maxAttempts=2, backoff=2000)`）。
+  - **死信兜底**：重试耗尽先 `MarkFailed`（置 `failed` + execMessage）并发 failed 事件，再 `Nack(requeue=false)` 让毒消息经 `x-dead-letter-exchange` 进入死信队列保留排查，而非直接丢弃。
+
+> 换队列名说明：RabbitMQ 不允许修改已存在队列的声明参数，给主队列补死信参数会 `PRECONDITION_FAILED`，故换新名 `BI_Queue.v2` 重新声明（exchange/routingKey 不变，端到端连通）。**已部署环境**：旧 `BI_Queue` 若有积压需人工处理。
+
+## 超时取消（context 传播）
+
+- `ProcessChart(ctx, chartID)` / `GenSync(ctx, ...)` 一路把 ctx 透传到 `DeepSeekService.AnalyzeCsv(ctx, prompt)`，后者用 `http.NewRequestWithContext` 发请求。
+- 消费者 `handle` 用 `context.WithTimeout(ctx, CHART_GEN_TIMEOUT)`（默认 30s）包装后传入，使 AI 调用可被**主动打断**，而非仅靠 `http.Client{Timeout:60s}` 兜底（60s 兜底保留作双保险）。
+- 超时/取消归一化为 `errors.Is(err, context.DeadlineExceeded/Canceled)`；超时时 `ProcessChart` 返回 execMessage 为「生成超时」的业务错误。
+
+## 事务消息表（Outbox）
+
+- 目的：修复 `/gen/async`「先入库再发消息」的双写不一致窗口（入库成功但发消息失败 → 任务永久 wait）。
+- 表 `outbox`（id/aggregateId/payload/status[pending/sent]/retryCount/createTime/updateTime，见 `sql/02_outbox.sql`）。
+- `SaveWait` 在**一个 DB 事务**内写入 `chart(wait)` + `outbox(pending)`，二者原子化；`GenAsync` 不再直接 `Publish`。
+- Relay（server 进程内后台 goroutine，开关 `OUTBOX_RELAY_ENABLED` 默认开、间隔 `OUTBOX_RELAY_INTERVAL` 默认 5s）：轮询 `pending` → `producer.Publish(payload)` → 成功置 `sent`，失败累加 `retryCount` 下轮重试。producer 为 nil（RabbitMQ 未连通）时不启动。
+- **语义边界**：relay 是 **at-least-once**（可能重复投递），依赖上面「幂等消费 CAS」兜底，整体达到 **effectively-once**（终态不重复生成）。
+
+## SSE 实时推送
+
+- 目的：任务状态变更实时推前端，去掉无效轮询；前端优雅降级回轮询。
+- 跨进程：`consumer` 进程处理完成/失败后，经 **Redis Pub/Sub** 向频道 `CHART_EVENTS_CHANNEL`（默认 `chart:events`）发布 `{chartId,status}`（实现 `event.EventPublisher`，连接失败降级为 `NoopPublisher`，不阻塞消费）。
+- `server` 进程 SSE handler：`GET /api/chart/sse?id=`（走 auth + 校验该 chart 属于当前用户），订阅频道、按 chartId 过滤后用 `text/event-stream` 推送（`Cache-Control:no-cache`、`Connection:keep-alive`、15s 心跳、`c.Request.Context().Done()` 清理）。
+- 前端 `useChartEvents`（`EventSource`，同源带 cookie）：收 succeed/failed 刷新该图表；不可用/断连/建连超时则回退现有 `usePolling`（保留未删）。
 
 ## DeepSeek
 
@@ -62,3 +87,9 @@ HTTP 请求
 ## 配置项
 
 见 [`.env.example`](../../.env.example)：`PORT / DB_DSN / REDIS_ADDR / REDIS_PASSWORD / RABBITMQ_URL / DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / SESSION_SECRET / SESSION_MAX_AGE`。
+
+异步可靠性相关（均有默认值，连接失败不阻塞主流程）：
+- `CHART_GEN_TIMEOUT`：单次 AI 生成超时（默认 `30s`，支持 `30s`/`2m` 或纯数字秒）。
+- `OUTBOX_RELAY_ENABLED`：是否启用 outbox relay（默认 `true`）。
+- `OUTBOX_RELAY_INTERVAL`：relay 轮询间隔（默认 `5s`）。
+- `CHART_EVENTS_CHANNEL`：SSE 事件的 Redis Pub/Sub 频道名（默认 `chart:events`）。

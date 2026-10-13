@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+### Phase 7 — 异步链路可靠性与实时性（并行开发合入）
+> 以 git worktree 并行推进 4 个特性，Phase 0 先合入共享骨架（ctx 透传 / `event.EventPublisher` 事件点 / consumer `onExhausted` 兜底扩展点 / config 预埋字段）消除冲突，再按 `timeout → reliable → outbox → sse` 顺序合并。
+#### Added
+- **超时取消（timeout）**：`DeepSeekService.AnalyzeCsv(ctx, prompt)` 改用 `http.NewRequestWithContext`；`ProcessChart(ctx,...)` / `GenSync(ctx,...)` 透传 ctx；consumer 用 `context.WithTimeout(CHART_GEN_TIMEOUT，默认 30s)` 包装，AI 调用可被主动打断（保留 60s client Timeout 兜底）。超时归一化为 `errors.Is(ctx.DeadlineExceeded)`，execMessage 记「生成超时」。含超时/取消单测。
+- **幂等消费 + 死信（reliable）**：置 running 改状态 CAS（`WHERE status='wait'`），未抢到返回哨兵 `ErrAlreadyProcessed`，消费者直接 ack 跳过 → 重复消息不重复生成。主队列换名 `BI_Queue.v2` 并加 `x-dead-letter-exchange`，新增死信 exchange/queue（`BI_exchange.DLX` / `BI_Queue.DLX`）；`onExhausted` 改 `Nack(requeue=false)` 使毒消息进死信留存。含 CAS 分类单测。
+- **事务消息表 Outbox（outbox）**：新增 `outbox` 表与 `model/outbox.go`、`outbox/relay.go`、`sql/02_outbox.sql`。`SaveWait` 在单 DB 事务内插 `chart(wait)+outbox(pending)`，`GenAsync` 不再直接 Publish；server 进程内 relay goroutine（`OUTBOX_RELAY_ENABLED`/`OUTBOX_RELAY_INTERVAL`）轮询补发。relay at-least-once + 幂等 CAS = effectively-once。含 relay 扫描/置位单测。
+- **SSE 实时推送（sse）**：新增 `event/redis_publisher.go`、`handler/sse_handler.go`，路由 `GET /api/chart/sse?id=`（auth + 归属校验）。consumer 经 Redis Pub/Sub（`CHART_EVENTS_CHANNEL`，默认 `chart:events`）跨进程发布状态事件，`cmd/consumer` 新装配 Redis（失败降级 NoopPublisher）。前端新增 `useChartEvents.ts`（EventSource），断连/不支持回退 `usePolling`（保留）。
+- 配置：`internal/config` 新增 `CHART_GEN_TIMEOUT` / `OUTBOX_RELAY_ENABLED` / `OUTBOX_RELAY_INTERVAL` / `CHART_EVENTS_CHANNEL` 及 `getEnvBool` / `getEnvDuration` 助手。
+- 新增包 `internal/event`：`EventPublisher` 接口 + `NoopPublisher` 默认实现。
+#### Changed
+- SSE 为**新增**能力，不替换现有接口；HTTP 响应结构与前端状态值（wait/running/succeed/failed）保持不变。
+#### Verified
+- 四特性合并后 `go build ./...`、`go vet ./...`、`go test ./...` 全绿，`gofmt -l .` 无输出；前端 `npm run lint:js` 通过（tsc 按既定约束不作门禁）。
+- 死信端到端、Outbox 补发、SSE 推送需连 RabbitMQ + Redis 环境联调验证（单测已覆盖各自纯逻辑）。
+
 ### Phase 0 — Spec 与脚手架
 #### Added
 - 初始化 Go module `genbi-go-backend`（go 1.24）。
