@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -46,7 +47,10 @@ func NewDeepSeekService(apiKey, baseURL string) *DeepSeekService {
 }
 
 // AnalyzeCsv 调用 DeepSeek 分析（prompt 已由调用方拼好），返回解析后的结果。
-func (s *DeepSeekService) AnalyzeCsv(prompt string) (*AiResult, error) {
+//
+// ctx 用于超时/取消控制（Phase 0 骨架：此处先接收 ctx，由 wt-timeout 接入
+// http.NewRequestWithContext 使其真正可被打断；在此之前客户端仍有 60s 兜底）。
+func (s *DeepSeekService) AnalyzeCsv(ctx context.Context, prompt string) (*AiResult, error) {
 	if s.apiKey == "" {
 		return nil, errors.New("DeepSeek API key 未配置")
 	}
@@ -68,6 +72,7 @@ func (s *DeepSeekService) AnalyzeCsv(prompt string) (*AiResult, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	_ = ctx // Phase 0 占位：ctx 暂未接入请求，由 wt-timeout 改为 http.NewRequestWithContext
 
 	resp, err := s.client.Do(req)
 	if err != nil {

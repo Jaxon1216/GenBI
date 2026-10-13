@@ -156,7 +156,7 @@ func (h *ChartHandler) Gen(c *gin.Context) {
 		return
 	}
 
-	res, err := h.chartService.GenSync(user.ID, req, csvData)
+	res, err := h.chartService.GenSync(c.Request.Context(), user.ID, req, csvData)
 	if err != nil {
 		fail(c, err)
 		return

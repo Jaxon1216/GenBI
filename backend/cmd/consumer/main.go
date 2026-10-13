@@ -6,6 +6,7 @@ import (
 
 	"genbi-go-backend/internal/bootstrap"
 	"genbi-go-backend/internal/config"
+	"genbi-go-backend/internal/event"
 	"genbi-go-backend/internal/mq"
 	"genbi-go-backend/internal/service"
 )
@@ -25,7 +26,10 @@ func main() {
 	}
 	defer mqClient.Close()
 
-	consumer := mq.NewConsumer(mqClient, chartService)
+	// 事件发布器：默认 no-op；wt-sse 会在此装配 Redis 并注入 Redis Pub/Sub 实现。
+	var publisher event.EventPublisher = event.NoopPublisher{}
+
+	consumer := mq.NewConsumer(mqClient, chartService, cfg.ChartGenTimeout, publisher)
 	log.Println("[consumer] 启动，等待图表生成任务...")
 	if err := consumer.Start(); err != nil {
 		log.Fatalf("[consumer] 消费失败: %v", err)

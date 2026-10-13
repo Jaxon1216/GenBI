@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -159,11 +160,11 @@ func BuildPrompt(goal, chartType, csvData string) string {
 }
 
 // GenSync 同步生成：调用 AI → 清洗 → 入库 → 返回 BiResponse。
-// csvData 由 handler 从上传文件解析得到。
-func (s *ChartService) GenSync(userID int64, req *dto.GenChartByAiRequest, csvData string) (*dto.BiResponse, error) {
+// csvData 由 handler 从上传文件解析得到；ctx 透传给 AI 调用以支持超时/取消。
+func (s *ChartService) GenSync(ctx context.Context, userID int64, req *dto.GenChartByAiRequest, csvData string) (*dto.BiResponse, error) {
 	prompt := BuildPrompt(req.Goal, req.ChartType, csvData)
 
-	aiResult, err := s.deepSeek.AnalyzeCsv(prompt)
+	aiResult, err := s.deepSeek.AnalyzeCsv(ctx, prompt)
 	if err != nil {
 		return nil, common.NewBusinessError(common.SYSTEM_ERROR, "AI 生成图表失败："+err.Error())
 	}
@@ -208,7 +209,11 @@ func (s *ChartService) SaveWait(userID int64, req *dto.GenChartByAiRequest, csvD
 
 // ProcessChart 消费者处理逻辑：置 running → 调 AI → 清洗 → 置 succeed。
 // 任一步失败返回 error（由消费者按重试/兜底策略处理）。
-func (s *ChartService) ProcessChart(chartID int64) error {
+//
+// ctx 由 consumer.handle 用 context.WithTimeout 包装后传入，一路透传到 AI 调用，
+// 使生成可被超时/取消打断（wt-timeout 负责）。
+// 「置 running」处的 CAS 幂等改造由 wt-reliable 负责；两者各改各自区段，互不重叠。
+func (s *ChartService) ProcessChart(ctx context.Context, chartID int64) error {
 	var chart model.Chart
 	if err := s.db.Where("id = ?", chartID).First(&chart).Error; err != nil {
 		return common.NewBusinessError(common.NOT_FOUND_ERROR, "图表不存在")
@@ -221,7 +226,7 @@ func (s *ChartService) ProcessChart(chartID int64) error {
 	}
 
 	prompt := BuildPrompt(chart.Goal, chart.ChartType, chart.ChartData)
-	aiResult, err := s.deepSeek.AnalyzeCsv(prompt)
+	aiResult, err := s.deepSeek.AnalyzeCsv(ctx, prompt)
 	if err != nil {
 		return common.NewBusinessError(common.OPERATION_ERROR, "AI 生成图表失败："+err.Error())
 	}
