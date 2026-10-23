@@ -10,17 +10,19 @@ import '@umijs/max';
 import { Modal } from 'antd';
 import React from 'react';
 export type FormValueType = {
+  name?: string;
+  desc?: string;
   target?: string;
   template?: string;
   type?: string;
   time?: string;
   frequency?: string;
-} & Partial<API.RuleListItem>;
+};
 export type UpdateFormProps = {
   onCancel: (flag?: boolean, formVals?: FormValueType) => void;
   onSubmit: (values: FormValueType) => Promise<void>;
   updateModalOpen: boolean;
-  values: Partial<API.RuleListItem>;
+  values: FormValueType;
 };
 const UpdateForm: React.FC<UpdateFormProps> = (props) => {
   return (
