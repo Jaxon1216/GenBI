@@ -5,75 +5,88 @@ on:
     branches: [ main, develop ]
     paths:
       - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [ main, develop ]
     paths:
       - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   lint-and-test:
     name: 代码检查和测试
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout 代码
-        uses: actions/checkout@v3
-      
-      - name: 设置 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/checkout@v4
+
+      - name: 设置 pnpm
+        uses: pnpm/action-setup@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
+          package_json_file: frontend/package.json
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
       - name: 安装依赖
         working-directory: ./frontend
-        run: npm ci
-      
+        run: pnpm install --frozen-lockfile
+
       - name: ESLint 检查
         working-directory: ./frontend
-        run: npm run lint:js
-      
+        run: pnpm run lint:js
+
       - name: Prettier 检查
         working-directory: ./frontend
-        run: npm run lint:prettier
-      
+        run: pnpm run lint:prettier
+
       - name: TypeScript 类型检查
         working-directory: ./frontend
-        run: npm run tsc
-      
+        run: pnpm run tsc
+
       - name: 运行测试（如果有）
         working-directory: ./frontend
-        run: npm run test || echo "No tests configured"
-        continue-on-error: true
-  
+        # 当前没有测试文件；只允许空测试集通过，不忽略配置或测试失败。
+        run: pnpm run test --ci --runInBand --passWithNoTests
+
   build:
     name: 构建项目
     runs-on: ubuntu-latest
     needs: lint-and-test
-    
+
     steps:
       - name: Checkout 代码
-        uses: actions/checkout@v3
-      
-      - name: 设置 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/checkout@v4
+
+      - name: 设置 pnpm
+        uses: pnpm/action-setup@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
+          package_json_file: frontend/package.json
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
       - name: 安装依赖
         working-directory: ./frontend
-        run: npm ci
-      
+        run: pnpm install --frozen-lockfile
+
       - name: 构建项目
         working-directory: ./frontend
-        run: npm run build
-      
+        run: pnpm run build
+
       - name: 上传构建产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: frontend/dist
           retention-days: 7
+          if-no-files-found: error
