@@ -1,6 +1,6 @@
 # GenBI
 
-基于 React 与 Spring Boot 的智能数据分析应用：上传表格数据，由 AI 生成可视化图表与分析结论。
+基于 React 与 Go 的智能数据分析应用：上传表格数据，由 AI 生成可视化图表与分析结论。
 
 ## 演示视频
 
@@ -28,7 +28,8 @@ GenBI/
 
 ### 环境
 
-- Node.js 16+
+- Node.js 22（与 CI 保持一致）
+- pnpm 9.15.9：`npm install -g pnpm@9.15.9`
 - Go 1.24+
 - MySQL 8，创建数据库并执行 `backend/sql/create_table.sql`
 - Redis：`brew install redis && brew services start redis`
@@ -66,8 +67,8 @@ make consumer           # 另开终端，启动 RabbitMQ 异步消费者
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 默认访问：http://localhost:8000 。dev 模式下 `/api` 已代理到 `http://localhost:8080`。
@@ -78,7 +79,7 @@ npm run dev
 
 ```bash
 cd frontend
-npm run openapi
+pnpm run openapi
 ```
 
 ### 账号

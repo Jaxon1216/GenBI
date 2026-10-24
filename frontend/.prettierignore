@@ -1,6 +1,7 @@
 **/*.svg
 .umi
 .umi-production
+.umi-test
 /dist
 .dockerignore
 .DS_Store

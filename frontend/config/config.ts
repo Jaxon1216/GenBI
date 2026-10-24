@@ -11,6 +11,8 @@ export default defineConfig({
    * @doc https://umijs.org/docs/api/config#hash
    */
   hash: true,
+  // 隔离压缩后的 esbuild helper，避免异步 chunk 与入口同名冲突。
+  esbuildMinifyIIFE: true,
   /**
    * @name 兼容性设置
    * @description 设置 ie11 不一定完美兼容，需要检查自己使用的所有依赖
