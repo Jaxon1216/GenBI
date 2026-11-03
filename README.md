@@ -28,12 +28,26 @@ GenBI/
 
 ### 环境
 
-- Node.js 22（与 CI 保持一致）
+- Docker（含 Docker Compose v2）
+- Node.js 20（与 CI 保持一致）
 - pnpm 9.15.9：`npm install -g pnpm@9.15.9`
-- Go 1.24+
-- MySQL 8，创建数据库并执行 `backend/sql/create_table.sql`
-- Redis：`brew install redis && brew services start redis`
-- RabbitMQ：`brew install rabbitmq && brew services start rabbitmq`
+- Go 1.25+（实际版本以 `backend/go.mod` 为准）
+
+### 依赖服务（Docker Compose）
+
+MySQL、Redis、RabbitMQ 三个中间件由仓库根目录的 `docker-compose.yml` 统一管理，无需在本机逐个安装：
+
+```bash
+docker compose up -d          # 启动全部（后台）
+docker compose ps             # 查看状态，STATUS 显示 healthy 才表示可用
+docker compose logs -f mysql  # 查看日志
+docker compose down           # 停止并删除容器（数据保留）
+docker compose down -v        # 停止并清空数据（下次启动会重新执行建表脚本）
+```
+
+MySQL 首次启动会自动执行 `backend/sql/` 下的脚本，默认账号 `root`、密码 `123`、库名 `genbi`，与 `backend/.env.example` 的默认 `DB_DSN` 一致。
+
+> 端口冲突：若本机已有 brew 安装的 Redis / RabbitMQ 在运行，请先执行 `brew services stop redis rabbitmq`，否则 6379 / 5672 被占用会导致容器启动失败。
 
 ### 端口（开发）
 
@@ -41,15 +55,19 @@ GenBI/
 |------|------|
 | 8080 | 后端 API（前端 dev 代理写死到该端口） |
 | 8000 | 前端开发服务器 |
-| 3306 | MySQL |
-| 6379 | Redis |
-| 5672 | RabbitMQ |
+| 3306 | MySQL（Docker Compose） |
+| 6379 | Redis（Docker Compose） |
+| 5672 | RabbitMQ（Docker Compose） |
+| 15672 | RabbitMQ 管理台（默认 guest/guest） |
 
 ### 数据库
 
-```sql
--- 在 MySQL 中执行
-source backend/sql/create_table.sql;
+无需手动执行：MySQL 容器首次启动时会自动运行 `backend/sql/*.sql`（建库、建表、outbox 表）。
+
+如需重新初始化（例如修改了 SQL 脚本）：
+
+```bash
+docker compose down -v && docker compose up -d
 ```
 
 ### 后端
