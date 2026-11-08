@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C06 · SSE 已连接，页面为什么还在 running？</title>
+  <style>
+    :root { color-scheme: light; --ink: #202c32; --muted: #64716f; --accent: #17675b; --line: #dce5df; --paper: #fafbf8; --surface: #fff; --tint: #edf5f1; --wait: #906016; --error: #ac4039; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.8 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    main { max-width: 70rem; margin: auto; padding: 1.4rem clamp(1rem, 4vw, 3rem) 3.5rem; }
+    a { color: var(--accent); text-underline-offset: .2em; overflow-wrap: anywhere; }
+    nav { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); font-size: .85rem; }
+    header { max-width: 50rem; padding: 2rem 0 1.6rem; }
+    .eyebrow { margin: 0 0 .6rem; color: var(--muted); font-size: .78rem; letter-spacing: .08em; }
+    h1 { margin: 0 0 1rem; font-size: clamp(1.9rem, 4.3vw, 2.9rem); font-weight: 650; letter-spacing: -.035em; line-height: 1.25; text-wrap: balance; }
+    h2 { margin: 0 0 .6rem; font-size: 1.35rem; line-height: 1.5; }
+    h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+    p { margin: .6rem 0; }
+    .lead { margin: 0; font-size: 1.05rem; color: #465750; }
+    .scene-note { max-width: 48rem; margin-bottom: 1.2rem; color: var(--muted); }
+    .lesson-stage { padding: clamp(1rem, 3vw, 2rem); border: 1px solid var(--line); background: var(--surface); border-radius: .6rem; }
+    .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 1rem 0; }
+    button { max-width: 100%; padding: .65rem 1rem; border: 1px solid var(--accent); border-radius: .35rem; background: var(--accent); color: white; font: inherit; font-size: .92rem; line-height: 1.5; cursor: pointer; }
+    button.secondary { color: var(--accent); background: white; border-color: var(--line); }
+    button:hover:not(:disabled) { filter: brightness(.94); }
+    button:disabled { opacity: .55; cursor: default; }
+    a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid #b48225; outline-offset: 4px; }
+    .feedback { margin: 1rem 0 1.2rem; padding: 1rem 1.2rem; border-left: 3px solid var(--accent); background: var(--tint); }
+    .feedback p { margin: .25rem 0; }
+    .feedback[data-tone="warning"] { border-color: var(--wait); background: #faf4e7; }
+    .trace { margin: .7rem 0 0; padding-left: 1.4rem; font-size: .88rem; color: var(--muted); }
+    .rule { max-width: 48rem; margin: 2rem 0; }
+    .rule ol { padding-left: 1.4rem; }
+    .rule li + li { margin-top: .5rem; }
+    .takeaway { margin-top: 1.2rem; color: var(--accent); font-weight: 600; }
+    details { margin: 1rem 0; padding-top: 1rem; border-top: 1px solid var(--line); }
+    summary { cursor: pointer; color: var(--accent); font-size: .92rem; }
+    details > div { margin-top: 1rem; max-width: 52rem; }
+    .reference-list { padding-left: 1.2rem; font-size: .88rem; color: var(--muted); }
+    .reference-list li + li { margin-top: .7rem; }
+    code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .88em; overflow-wrap: anywhere; }
+    pre { max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; padding: 1rem; background: #f3f6f2; border-left: 2px solid #bdcfc3; font-size: .9rem; line-height: 1.65; }
+    .model-note, .followup { color: var(--muted); font-size: .82rem; }
+    .model-note { margin-top: .8rem; }
+    .followup { padding-top: 1rem; border-top: 1px solid var(--line); }
+    [hidden] { display: none !important; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .stage-heading { display: flex; flex-wrap: wrap; gap: .4rem 1rem; justify-content: space-between; align-items: baseline; }
+    .stage-heading h3 { font-size: 1.1rem; }
+    .stage-heading p { margin: 0; color: var(--muted); font-size: .8rem; }
+    #scenario-label { color: var(--accent); font-weight: 600; }
+    .feedback-label { display: inline-block; min-width: 3.8rem; color: var(--accent); font-size: .8rem; font-weight: 650; }
+    .feedback h3 { margin-bottom: .5rem; }
+    .current-rule { padding-top: .5rem; margin-top: .6rem !important; border-top: 1px solid #cbded1; font-size: .83rem; }
+    .timeline-caption { display: flex; flex-wrap: wrap; gap: .3rem 1rem; justify-content: space-between; align-items: baseline; margin-bottom: .5rem; }
+    .timeline-caption h3 { margin: 0; }
+    #timeline-position { color: var(--muted); font-size: .8rem; }
+    .timeline-view { display: flex; max-width: 100%; overflow-x: auto; border: 1px solid var(--line); overscroll-behavior-inline: contain; scrollbar-color: #8cae9c var(--tint); }
+    .timeline-axis { flex: 0 0 7.3rem; display: grid; grid-template-rows: 4.5rem repeat(5, 6.5rem); background: #f3f6f2; }
+    .timeline-axis span { display: flex; align-items: center; padding: .6rem; border-bottom: 1px solid var(--line); font-size: .8rem; line-height: 1.6; }
+    .timeline-axis span:first-child { color: var(--muted); font-size: .75rem; }
+    .timeline { position: relative; display: grid; grid-template-columns: repeat(var(--moments, 1), minmax(8.4rem, 1fr)); flex: 1 0 auto; width: calc(100% - 7.3rem); min-width: 0; padding: 0; margin: 0; list-style: none; }
+    .timeline-moment { min-width: 0; display: grid; grid-template-rows: 4.5rem repeat(5, 6.5rem); border-right: 1px solid var(--line); }
+    .timeline-moment:last-child { border-right: 0; }
+    .moment-title { display: flex; flex-direction: column; justify-content: center; gap: .2rem; margin: 0; padding: .55rem .65rem; background: #f7f9f5; border-bottom: 1px solid var(--line); line-height: 1.4; font-size: .8rem; }
+    .moment-title small { color: var(--muted); font-size: .7rem; }
+    .is-current .moment-title { color: white; background: var(--accent); }
+    .is-current .moment-title small { color: white; }
+    .lane-cell { min-width: 0; padding: .65rem; border-bottom: 1px solid var(--line); font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
+    .lane-cell:last-child, .timeline-axis span:last-child { border-bottom: 0; }
+    .lane-name { display: none; }
+    .lane-value { display: block; }
+    .lane-value strong { display: block; margin-bottom: .3rem; font-size: .83rem; font-weight: 600; }
+    .lane-value small { display: block; color: var(--muted); font-size: .73rem; }
+    .lane-cell[data-tone="success"] strong { color: var(--accent); }
+    .lane-cell[data-tone="wait"] strong { color: var(--wait); }
+    .lane-cell[data-tone="missed"] strong { color: var(--error); }
+    .lane-cell.is-changed { background: var(--tint); box-shadow: inset 0 2px var(--accent); }
+    .lane-cell.is-changed[data-tone="missed"] { background: #fbf0ed; box-shadow: inset 0 2px var(--error); }
+    #timeline-hint, .trace-label { margin: .5rem 0; color: var(--muted); font-size: .78rem; }
+    .legend-mark { display: inline-block; width: .8rem; height: .8rem; margin-right: .25rem; border-top: 2px solid var(--accent); background: var(--tint); vertical-align: middle; }
+    fieldset { min-width: 0; padding: .8rem 1rem; border: 1px solid var(--line); }
+    legend { padding: 0 .4rem; font-size: .87rem; }
+    .order-option { display: flex; align-items: flex-start; gap: .5rem; padding: .45rem 0; cursor: pointer; font-size: .9rem; line-height: 1.6; }
+    .order-option input { flex: 0 0 auto; margin: .4rem 0 0; accent-color: var(--accent); width: 1rem; height: 1rem; }
+    #disconnect-branch { padding-top: .6rem; border-top: 1px solid var(--line); }
+    #disconnect-branch p { font-size: .87rem; }
+    .model-badge { display: inline-block; padding: .15rem .45rem; border: 1px solid var(--line); color: var(--muted); font-size: .7rem; line-height: 1.5; }
+    @media (max-width: 38rem) {
+      header { padding-top: 1.5rem; }
+      button { padding: .65rem .8rem; }
+      .controls > button { flex: 1 1 100%; }
+      .feedback { padding: .9rem; }
+      .feedback-label { display: block; }
+      .timeline-view { scroll-snap-type: x mandatory; }
+      .timeline-axis { display: none; }
+      .timeline { display: flex; flex: 0 0 100%; width: 100%; }
+      .timeline-moment { flex: 0 0 100%; width: 100%; grid-template-rows: auto; scroll-snap-align: start; }
+      .moment-title { min-height: 3.6rem; }
+      .lane-cell { display: grid; grid-template-columns: 5.2rem minmax(0, 1fr); gap: .6rem; min-height: 4.3rem; padding: .75rem; }
+      .lane-name { display: block; color: var(--muted); font-size: .76rem; }
+      .lane-value strong { font-size: .9rem; }
+      .lane-value small { font-size: .78rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+    @media print {
+      body { background: white; font-size: 10pt; }
+      main { max-width: none; padding: 0; }
+      nav, .controls, button, .followup, #timing-controls, #disconnect-branch, #timeline-hint, .model-badge { display: none !important; }
+      header { padding: 0 0 1rem; }
+      h1 { font-size: 23pt; }
+      h2 { font-size: 14pt; }
+      h1, h2, h3 { break-after: avoid; }
+      .lesson-stage { padding: 1rem; }
+      .feedback, .timeline-moment, pre { break-inside: avoid; }
+      .timeline-view { display: block; overflow: visible; border: 0; }
+      .timeline-axis { display: none; }
+      .timeline { display: block; width: 100%; }
+      .timeline-moment { display: block; width: 100%; border: 1px solid var(--line); }
+      .timeline-moment:not(.is-current) { display: none; }
+      .moment-title, .is-current .moment-title { color: var(--ink); background: white; border-bottom: 2px solid var(--accent); }
+      .is-current .moment-title small { color: var(--ink); }
+      .lane-cell { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .5rem; min-height: 0; padding: .45rem .65rem; }
+      .lane-name { display: block; font-size: 9pt; }
+      .lane-value strong, .lane-value small { display: inline; font-size: 9pt; }
+      .lane-value small { margin-left: .6rem; }
+      .lane-cell.is-changed { box-shadow: none; background: white; }
+      .rule { margin: 1.3rem 0; }
+      details::details-content { content-visibility: visible; }
+      details > :not(summary) { display: block; }
+      .reference-list { font-size: 8.5pt; }
+      #evidence a::after { content: " (" attr(href) ")"; font-size: 7.5pt; overflow-wrap: anywhere; }
+    }
+  </style>
+</head>
+<body>
+  <main data-lesson="sse-notification-gap">
+    <nav aria-label="课程导航">
+      <a href="../../GenBI/导学.md">← 返回导学</a>
+      <a href="../06-SSE与轮询.md">完整课程 · C06 SSE 与轮询</a>
+    </nav>
+    <header>
+      <p class="eyebrow">C06 SSE 与轮询 · 一次弄懂一个机制</p>
+      <h1>SSE 已连接，页面为什么还在 <code>running</code>？</h1>
+      <p class="lead">学会判断页面何时能追上数据库：通知只触发查询，列表响应才更新页面。连接健康，不等于状态已经补齐。</p>
+    </header>
+    <section id="explore" aria-labelledby="demo-title">
+      <h2 id="demo-title">沿着同一张图表 101，走到页面收敛</h2>
+      <p class="scene-note">你已熟悉请求与页面状态。这里仅分清两件事：数据库保存持久事实；通知告诉页面“值得再查一次”。起点是列表刚返回 <code>running</code>，数据库也为 <code>running</code>，轮询已启用，SSE 正在建连。</p>
+      <div class="lesson-stage">
+        <div class="stage-heading">
+          <h3>图表 101 · <span id="scenario-label">订阅后完成</span></h3>
+          <p><span class="model-badge">简化状态机 · 无真实网络</span></p>
+        </div>
+        <div class="controls" aria-label="逐步演示">
+          <button id="next-step" type="button" aria-controls="feedback timeline">1 · 订阅生效，SSE 打开</button>
+          <button id="reset-demo" class="secondary" type="button">重置当前顺序</button>
+        </div>
+        <div id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" data-tone="normal">
+          <h3 id="feedback-title">T0 · 页面拿到一个 running 快照</h3>
+          <p><span class="feedback-label">刚改变</span><span id="feedback-change">列表响应已写入页面；图表 101 还在生成。</span></p>
+          <p><span class="feedback-label">规则</span><span id="feedback-cause">页面有 pending 图表，且 fallback 默认为 true，所以轮询启用。</span></p>
+          <p><span class="feedback-label">因此</span><span id="feedback-effect">页面与数据库同为 running。尚未发生终态通知，下一步先建立订阅与连接。</span></p>
+          <p class="current-rule"><code id="active-rule">enabled = hasPendingCharts &amp;&amp; sseFallback</code></p>
+        </div>
+        <div class="timeline-caption">
+          <h3 id="timeline-title">五条泳道 · 从左到右看事件顺序</h3>
+          <span id="timeline-position">T0 · 当前 / 共 1 个时刻</span>
+        </div>
+        <div id="timeline-viewport" class="timeline-view" tabindex="0" role="region" aria-labelledby="timeline-title" aria-describedby="timeline-hint">
+          <div class="timeline-axis" aria-hidden="true">
+            <span>事件顺序 →</span>
+            <span>数据库<br>持久事实</span>
+            <span>通知<br>一次性信号</span>
+            <span>SSE 连接<br>传输通道</span>
+            <span>页面 / 列表<br>查询快照</span>
+            <span>轮询<br>另一个查询入口</span>
+          </div>
+          <ol id="timeline" class="timeline" aria-label="图表 101 的状态时间线"></ol>
+        </div>
+        <p id="timeline-hint"><span class="legend-mark" aria-hidden="true"></span>浅绿与顶线标出本步变化。窄屏一次显示一个时刻；可横向滑动，或聚焦时间线后用 ← / →、Home / End 查看前后时刻。</p>
+        <p class="trace-label">本次已发生的因果链：</p>
+        <ol id="event-log" class="trace"></ol>
+        <div id="disconnect-branch" hidden>
+          <p><strong>再改变一个条件：</strong>这条健康连接如果后来真的断开，才会触发另一条刷新路径。断开不会补发旧通知。</p>
+          <button id="disconnect" class="secondary" type="button" aria-controls="feedback timeline">4 · 模拟断连，触发 onerror</button>
+        </div>
+        <details id="timing-controls">
+          <summary>主链看懂后：只交换“完成”与“订阅”的顺序</summary>
+          <div>
+            <fieldset>
+              <legend>保持图表 101、查询结果和网络条件不变；切换后从 T0 重新走</legend>
+              <label class="order-option" for="order-after">
+                <input id="order-after" name="event-order" type="radio" value="after" checked>
+                <span>订阅后完成：先建立订阅，再写 succeed 并发布通知。</span>
+              </label>
+              <label class="order-option" for="order-before">
+                <input id="order-before" name="event-order" type="radio" value="before">
+                <span>订阅前完成：列表仍是旧快照，任务在订阅生效前写 succeed 并发布通知。</span>
+              </label>
+            </fieldset>
+            <p class="model-note">此处“完成”合并展示成功写库及随后发布通知，不代表二者是一个原子事务。默认通知发布、可接收时的转发与列表请求都成功。</p>
+          </div>
+        </details>
+        <noscript><p>本演示需要启用 JavaScript；无需联网。核心判定方法与下方源码参考仍可阅读。</p></noscript>
+      </div>
+      <p class="model-note">这是<strong>简化模型，不是真实网络测试</strong>。固定当前页、仅一张图表；窗口内轮询计时器尚未触发，也没有已发出的查询、用户刷新或其他通知。每次点击推进一个观察步骤，T 编号不是耗时。实际服务端先 flush 响应头再调用 Subscribe；“订阅生效 + open”在本图合为一步，正常分支额外假定订阅确已生效，<strong>浏览器 onopen 本身并不确认 Redis 订阅</strong>。</p>
+    </section>
+    <section id="mechanism" class="rule">
+      <h2>判断收敛，只问三件事</h2>
+      <ol>
+        <li><strong>事实已经变了吗？</strong>消费者成功写 <code>succeed</code> 后，数据库有结果；但页面仍持有上一次列表快照，不会自动共享这次写入。</li>
+        <li><strong>谁会触发下一次查列表？</strong>订阅及时且通知到达，事件回调发起查询；漏过通知而连接一直 open 时，当前实现又关了轮询，未必还有自动查询入口。15 秒注释心跳不触发 <code>onmessage</code>。</li>
+        <li><strong>查询响应被接受了吗？</strong>成功返回并更新当前列表，页面才显示 <code>succeed</code>。断连只是把 fallback 设为 true；等轮询查询返回才收敛，不能把 onerror 当成拿到结果。</li>
+      </ol>
+      <p class="takeaway">不变量：页面状态来自列表响应，不来自连接状态。通知漏过后，数据库 succeed + SSE open + 轮询关闭，仍可能得到页面 running。</p>
+      <p>同样的图表 101，只把完成时刻移到订阅之前，就能解释为什么“已连接”不保证进度；再触发断连，则能看到轮询如何绕过丢失通知、直接读取持久状态。</p>
+    </section>
+    <details id="evidence">
+      <summary>按需查阅：源码、术语和适用边界</summary>
+      <div>
+        <p>源码基线：<code>6a0384cbf3a1f1901d5f7e5401fc5905d7590a49</code>；核对日期：<time datetime="2026-11-08">2026-11-08</time>。本页解释该基线的当前行为，不表示已经修复丢失窗口。</p>
+        <ul class="reference-list">
+          <li><a href="../../../backend/internal/service/chart_service.go"><code>backend/internal/service/chart_service.go</code></a>：<code>ProcessChart</code>，L260–296。成功更新 status、genChart、genResult 后才返回；DB running → succeed 是持久事实变化。</li>
+          <li><a href="../../../backend/internal/mq/consumer.go"><code>backend/internal/mq/consumer.go</code></a>：<code>handle</code> / <code>onExhausted</code>，L78–117。成功处理后发布 succeed，耗尽路径发布 failed；这条消费链不发布 running 事件，不能指望 running 通知持续驱动刷新。</li>
+          <li><a href="../../../backend/internal/event/redis_publisher.go"><code>backend/internal/event/redis_publisher.go</code></a>：<code>PublishChartEvent</code>，L31–43。只发布 <code>{chartId, status}</code>，发布错误仅记日志。这是尽力而为通知，不携带完整图表，也没有历史事件存储。</li>
+          <li><a href="../../../backend/internal/handler/sse_handler.go"><code>backend/internal/handler/sse_handler.go</code></a>：<code>Stream</code>，L49–73、L79–109。先读图表核对归属，再 flush、订阅 Pub/Sub；<strong>虽读到 chart，也不发送初始终态快照</strong>。匹配 ID 的消息以 <code>data: JSON</code> 转发；终态后结束流。L17–18、L84–88 每 15 秒写 <code>: ping</code> 注释，不是状态事件。</li>
+          <li><a href="../../../frontend/src/hooks/useChartEvents.ts"><code>frontend/src/hooks/useChartEvents.ts</code></a>：L97–133。默认 10 秒建连超时；open 调 <code>onFallback(false)</code>，message 回调上层查询并在终态主动 close，error 先 close 再 <code>onFallback(true)</code>。关闭发生在事件到达时，不等待列表响应。</li>
+          <li><a href="../../../frontend/src/pages/myChart/index.tsx"><code>frontend/src/pages/myChart/index.tsx</code></a>：L34–43、L53–93。初始 fallback=true；pending 来自当前列表的 wait/running；轮询条件为 <code>hasPendingCharts &amp;&amp; sseFallback</code>。事件回调仅 <code>loadData(true)</code>，列表响应 <code>setChartList</code> 才更新页面。</li>
+          <li><a href="../../../frontend/src/hooks/usePolling.ts"><code>frontend/src/hooks/usePolling.ts</code></a>：L31–64。启用后按计时器查询，请求完成后安排下一次；基础间隔 3 秒、无变化乘 1.5、最大 30 秒。兜底启用不等于立即拿到列表响应。</li>
+        </ul>
+        <h3>术语只保留这里需要的区别</h3>
+        <p><strong>Redis Pub/Sub</strong> 是当前订阅者接收的消息通道，后订阅不会回放过去消息；本项目的 SSE 包装也未增加事件存储、事件 ID 或 Last-Event-ID 补发。<strong>pending</strong> 指页面列表中的 wait/running；即使 DB 已 succeed，旧列表仍使 pending=true。<strong>收敛</strong> 指页面成功接受新列表响应后，与数据库终态一致。</p>
+        <h3>模型边界</h3>
+        <p>主链拆开“发布”“到达”“查询返回”，让通知与状态更新分别可见；实际它们可能很快连续发生。关闭连接、清理订阅也压缩到观察步骤。failed 的刷新路径类似，但本示例只演示成功写库，不推断失败写库一定成功。</p>
+        <p>单图表模型不覆盖多个连接共享 fallback 布尔值、搜索分页的响应竞态、可见性变化与旧请求返回后再调度。已有请求仍可能在关闭轮询后返回；所以本图的停滞是明确条件下的<strong>可能结果</strong>，不是每次都会发生。</p>
+        <h3>未来方案，不是当前实现</h3>
+        <p>可以考虑在健康 SSE 下仍保留低频状态对账，或订阅确认后补发当前状态；处理并发快照与通知时还需版本约束。<strong>这些增强尚未实现，本页没有把它们模拟成现有兜底。</strong>当前可见的轮询兜底来自断连、建连超时或 EventSource 不可用，不来自“通知已经漏掉”的检测。</p>
+      </div>
+    </details>
+    <p class="followup">哪一步还没想通，可以把当时的场景和操作告诉我，我们沿着这一步继续看。</p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const byId = id => document.getElementById(id);
+      const next = byId('next-step');
+      const viewport = byId('timeline-viewport');
+      const timeline = byId('timeline');
+      const laneNames = ['数据库', '通知', 'SSE 连接', '页面 / 列表', '轮询'];
+      let state;
+      let history;
+      let feedback;
+
+      const cell = (title, note, tone = 'normal') => ({ title, note, tone });
+      function lanes() {
+        const eventCells = {
+          none: cell('无终态通知', '没有 running 事件', 'wait'),
+          published: cell('已发布，待到达', '101 / succeed'),
+          missed: cell('已漏过，不回放', '发布时没有本次订阅', 'missed'),
+          delivered: cell('终态事件已到达', '只触发查询，不写页面', 'success')
+        };
+        const connectionCells = {
+          connecting: cell('建连中', '本次订阅尚未生效', 'wait'),
+          open: cell('open · 健康', state.heartbeat ? '收到注释心跳，无状态事件' : '本图假定订阅已生效', 'success'),
+          terminal: cell('closed · 终态', '终态到达即关闭连接'),
+          error: cell('closed · onerror', '关闭连接，启用兜底')
+        };
+        const requestNotes = {
+          idle: '仍是 T0 列表；未发新查询',
+          event: '事件触发的列表请求中',
+          poll: '轮询触发的列表请求中',
+          done: '新列表响应已被接受'
+        };
+        const polling = state.ui === 'running' && state.fallback;
+        return [
+          cell(state.db, state.db === 'succeed' ? '结果已成功写入 DB' : '生成尚未完成', state.db === 'succeed' ? 'success' : 'wait'),
+          eventCells[state.notification],
+          connectionCells[state.connection],
+          cell(state.ui, requestNotes[state.request], state.ui === 'succeed' ? 'success' : 'wait'),
+          cell(polling ? 'ON · 启用' : 'OFF · 关闭',
+            state.ui === 'succeed' ? 'pending=false，不再查询' : state.fallback ? 'pending=true，fallback=true' : 'pending=true，fallback=false',
+            polling ? 'success' : 'normal')
+        ];
+      }
+
+      function explain(title, change, cause, effect, rule, tone = 'normal') {
+        feedback = { title, change, cause, effect, rule, tone };
+      }
+
+      function record(title, log) {
+        history.push({ title, log, lanes: lanes() });
+        render();
+      }
+
+      function renderTimeline() {
+        const fragment = document.createDocumentFragment();
+        history.forEach((moment, index) => {
+          const item = document.createElement('li');
+          const current = index === history.length - 1;
+          item.className = 'timeline-moment' + (current ? ' is-current' : '');
+          item.dataset.time = String(index);
+          if (current) item.setAttribute('aria-current', 'step');
+          const heading = document.createElement('h4');
+          heading.className = 'moment-title';
+          const time = document.createElement('small');
+          time.textContent = 'T' + index + (current ? ' · 当前' : '');
+          const title = document.createElement('span');
+          title.textContent = moment.title;
+          heading.append(time, title);
+          item.append(heading);
+          moment.lanes.forEach((value, laneIndex) => {
+            const box = document.createElement('div');
+            const previous = index > 0 ? history[index - 1].lanes[laneIndex] : null;
+            const changed = previous && (previous.title !== value.title || previous.note !== value.note);
+            box.className = 'lane-cell' + (changed ? ' is-changed' : '');
+            box.dataset.lane = ['db', 'notification', 'connection', 'ui', 'polling'][laneIndex];
+            box.dataset.tone = value.tone;
+            box.setAttribute('role', 'group');
+            box.setAttribute('aria-label', laneNames[laneIndex] + '：' + value.title + '。' + value.note);
+            const label = document.createElement('span');
+            label.className = 'lane-name';
+            label.setAttribute('aria-hidden', 'true');
+            label.textContent = laneNames[laneIndex];
+            const content = document.createElement('span');
+            content.className = 'lane-value';
+            content.setAttribute('aria-hidden', 'true');
+            const strong = document.createElement('strong');
+            strong.textContent = value.title;
+            const note = document.createElement('small');
+            note.textContent = value.note;
+            content.append(strong, note);
+            box.append(label, content);
+            item.append(box);
+          });
+          fragment.append(item);
+        });
+        timeline.style.setProperty('--moments', history.length);
+        timeline.replaceChildren(fragment);
+        byId('timeline-position').textContent = 'T' + (history.length - 1) + ' · 当前 / 共 ' + history.length + ' 个时刻';
+        const logFragment = document.createDocumentFragment();
+        history.forEach((moment, index) => {
+          const entry = document.createElement('li');
+          entry.textContent = 'T' + index + ' · ' + moment.log;
+          logFragment.append(entry);
+        });
+        byId('event-log').replaceChildren(logFragment);
+        const current = timeline.lastElementChild;
+        viewport.scrollLeft = window.matchMedia('(max-width: 38rem)').matches
+          ? current.offsetLeft
+          : viewport.scrollWidth - viewport.clientWidth;
+      }
+
+      function render() {
+        const labels = {
+          initial: state.order === 'after' ? '1 · 订阅生效，SSE 打开' : '1 · 先完成写库并发布通知',
+          opened: '2 · 消费者写 succeed，并发布通知',
+          published: '3 · 通知到达，触发列表查询',
+          eventFetch: '4 · 列表返回，页面更新',
+          earlyComplete: '2 · 此时订阅生效，SSE 打开',
+          lateOpen: '3 · 等到一个心跳，不补发通知',
+          stalled: '没有下一条任务事件',
+          disconnected: '5 · 下一次轮询发起列表查询',
+          pollFetch: '6 · 列表返回，页面更新',
+          converged: '页面已收敛'
+        };
+        next.textContent = labels[state.phase];
+        next.disabled = state.phase === 'converged' || state.phase === 'stalled';
+        byId('scenario-label').textContent = state.order === 'after' ? '订阅后完成' : '订阅前完成';
+        byId('feedback').dataset.tone = feedback.tone;
+        byId('feedback-title').textContent = 'T' + (history.length - 1) + ' · ' + feedback.title;
+        byId('feedback-change').textContent = feedback.change;
+        byId('feedback-cause').textContent = feedback.cause;
+        byId('feedback-effect').textContent = feedback.effect;
+        byId('active-rule').textContent = feedback.rule;
+        byId('disconnect-branch').hidden = state.phase !== 'stalled';
+        document.querySelector('main').dataset.phase = state.phase;
+        document.querySelector('main').dataset.order = state.order;
+        renderTimeline();
+      }
+
+      function reset(order, switched = false) {
+        state = {
+          order, phase: 'initial', db: 'running', ui: 'running',
+          notification: 'none', connection: 'connecting', fallback: true,
+          request: 'idle', heartbeat: false
+        };
+        history = [];
+        byId('order-after').checked = order === 'after';
+        byId('order-before').checked = order === 'before';
+        explain('页面拿到一个 running 快照',
+          switched ? '仅交换完成与订阅的顺序；同一张图表 101 回到相同的 T0。' : '列表响应已写入页面；图表 101 还在生成。',
+          '页面有 pending 图表，且 fallback 默认为 true，所以轮询启用。',
+          '页面与数据库同为 running。尚未发生终态通知；窗口内也没有已发出的轮询查询。',
+          'enabled = hasPendingCharts && sseFallback');
+        record('列表返回 running', 'DB running → 列表快照 running；pending=true，轮询启用。');
+      }
+
+      function advance() {
+        if (state.phase === 'initial' && state.order === 'after') {
+          state.connection = 'open';
+          state.fallback = false;
+          state.phase = 'opened';
+          explain('订阅先就绪，连接打开',
+            '图中本次订阅已生效，浏览器触发 onopen。',
+            'onopen 将 fallback 设为 false；它既不发起列表查询，也不更新页面状态。',
+            '轮询关闭。DB 与页面仍是 running，接下来依靠未来通知触发查询。',
+            'es.onopen → onFallback(false)');
+          record('订阅 / open', '订阅生效 + onopen → fallback=false → 轮询关闭；没有查列表。');
+        } else if (state.phase === 'opened') {
+          state.db = 'succeed';
+          state.notification = 'published';
+          state.phase = 'published';
+          explain('持久结果先完成',
+            '消费者成功写入 DB succeed，随后发布图表 101 的终态通知。',
+            '订阅已经生效，本分支假定消息可以正常转发；发布本身不更新 React 列表。',
+            'DB 已 succeed，页面仍 running。通知尚未到达，因此还没有新列表请求。',
+            'ProcessChart 成功写库 → PublishChartEvent(101, "succeed")');
+          record('写库 / 发布', 'DB succeed → 发布 {chartId:101,status:"succeed"}；页面仍是旧快照。');
+        } else if (state.phase === 'published') {
+          state.notification = 'delivered';
+          state.connection = 'terminal';
+          state.request = 'event';
+          state.phase = 'eventFetch';
+          explain('通知到达，只启动查询',
+            '浏览器收到终态通知，事件回调发起列表请求；终态分支立即关闭该连接。',
+            '页面回调只是 loadData(true)，不会用事件里的 status 直接改写列表。',
+            '连接已 closed，查询还在途中，页面仍 running。轮询仍关闭；正在等待这次响应。',
+            'onmessage → loadData(true); 终态 → closeSource(id)');
+          record('到达 / 查询', '通知到达 → 查询列表 + 终态 close；查询未返回，UI 仍 running。');
+        } else if (state.phase === 'eventFetch' || state.phase === 'pollFetch') {
+          const fromPoll = state.phase === 'pollFetch';
+          state.ui = 'succeed';
+          state.request = 'done';
+          state.phase = 'converged';
+          explain('列表响应让页面收敛',
+            (fromPoll ? '轮询' : '事件') + '发起的列表请求成功返回，页面接受含 succeed 的新记录。',
+            'setChartList 用响应更新页面；pending ID 列表不再包含 101。',
+            '页面与 DB 都是 succeed，pending=false，轮询停止。连接已在' + (fromPoll ? '断连步骤' : '终态事件到达时') + '关闭，后续清理不再保留它。',
+            '列表响应 → setChartList(records) → pending=false → polling OFF');
+          record('响应 / 收敛', (fromPoll ? '轮询' : '事件') + '查询返回 DB succeed → UI succeed → pending=false，轮询关闭。');
+        } else if (state.phase === 'initial' && state.order === 'before') {
+          state.db = 'succeed';
+          state.notification = 'missed';
+          state.phase = 'earlyComplete';
+          explain('通知发生在本次订阅之前',
+            'DB 已成功写为 succeed，并发布相同的终态通知；本次订阅尚未生效。',
+            'Pub/Sub 不为后来的订阅保存或回放这条消息。当前没有收到通知的 SSE 回调。',
+            'DB succeed，页面仍 running；轮询此刻仍启用，但假定窗口内尚未触发查询。',
+            '发布时未订阅 → 本次通知漏过；DB 中的终态仍保留', 'warning');
+          record('先写库 / 漏通知', 'DB succeed → 在本次订阅之前发布 → 通知漏过；页面 running。');
+        } else if (state.phase === 'earlyComplete') {
+          state.connection = 'open';
+          state.fallback = false;
+          state.phase = 'lateOpen';
+          explain('健康连接也不能补过去',
+            '此时订阅才生效，SSE 正常打开；onopen 把 fallback 设为 false。',
+            '服务端不发初始终态快照，Pub/Sub 不回放，onopen 又不查询列表。',
+            '轮询关闭。连接 open、DB succeed、页面 running 同时成立，旧通知不会重新出现。',
+            'onopen → fallback=false；无初始快照 / 无回放 / 无列表查询', 'warning');
+          record('后订阅 / open', '迟到的订阅 + onopen → 轮询关闭；DB succeed 没有被读回页面。');
+        } else if (state.phase === 'lateOpen') {
+          state.heartbeat = true;
+          state.phase = 'stalled';
+          explain('心跳证明通道活着，不证明任务进度',
+            '连接收到服务端的注释心跳 : ping；没有新的任务状态事件。',
+            'SSE 注释不触发 onmessage；消费者也不发 running 事件，更不会因新订阅重发旧终态。',
+            '没有新查询：DB succeed、页面 running、连接 open、轮询 OFF。保持这些条件，仅继续等心跳不能保证收敛。',
+            ': ping\\n\\n 是注释，不是 data: 状态事件', 'warning');
+          record('心跳 / 仍停滞', '健康心跳 → 无 onmessage → 无列表查询；UI 仍 running，轮询关闭。');
+        } else if (state.phase === 'disconnected') {
+          state.request = 'poll';
+          state.phase = 'pollFetch';
+          explain('轮询不需要找回丢失通知',
+            '下一次轮询计时器触发，发起相同的列表查询。',
+            '页面仍有 pending 且 fallback=true，所以 usePolling 有效；读取的是 DB 当前状态。',
+            '旧通知仍然漏过，连接仍 closed，页面在请求返回前仍 running。查询响应才会完成收敛。',
+            'pending && fallback → 计时器 → loadData(true)');
+          record('轮询 / 查询', '轮询定时触发 → 查询 DB 当前列表；不回放通知，等待响应。');
+        }
+      }
+
+      next.addEventListener('click', advance);
+      byId('reset-demo').addEventListener('click', () => reset(state.order));
+      document.querySelectorAll('input[name="event-order"]').forEach(input => {
+        input.addEventListener('change', () => {
+          if (input.checked) reset(input.value, true);
+        });
+      });
+      byId('disconnect').addEventListener('click', () => {
+        if (state.phase !== 'stalled') return;
+        state.connection = 'error';
+        state.fallback = true;
+        state.phase = 'disconnected';
+        explain('实际断连才打开兜底',
+          '同一条连接现在发生错误，onerror 关闭连接并把 fallback 设为 true。',
+          '页面仍保留 running，pending=true；因此 pending && fallback 再次成立。',
+          '轮询重新启用，但还没发起下一次查询。DB succeed 不变，旧通知也没有补发，页面暂时仍 running。',
+          'es.onerror → closeSource(id) → onFallback(true)');
+        record('onerror / 兜底', 'onerror → close + fallback=true → 轮询启用；还未查询，不是立即收敛。');
+        next.focus({ preventScroll: true });
+      });
+      viewport.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const width = timeline.firstElementChild.getBoundingClientRect().width;
+        if (event.key === 'Home') viewport.scrollLeft = 0;
+        else if (event.key === 'End') viewport.scrollLeft = viewport.scrollWidth;
+        else viewport.scrollLeft += (event.key === 'ArrowLeft' ? -1 : 1) * width;
+      });
+      reset('after');
+    })();
+
+    (() => {
+      let lessonClosedDetails = [];
+      window.addEventListener('beforeprint', () => {
+        lessonClosedDetails = [...document.querySelectorAll('details:not([open])')];
+        lessonClosedDetails.forEach(node => { node.open = true; });
+      });
+      window.addEventListener('afterprint', () => {
+        lessonClosedDetails.forEach(node => { node.open = false; });
+        lessonClosedDetails = [];
+      });
+    })();
+  </script>
+</body>
+</html>

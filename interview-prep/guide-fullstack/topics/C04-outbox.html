@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C04 · 两张表一起提交，为什么消息仍会重复？</title>
+  <style>
+    :root { color-scheme: light; --ink: #202c32; --muted: #64716f; --accent: #17675b; --line: #dce5df; --paper: #fafbf8; --surface: #fff; --tint: #edf5f1; --wait: #906016; --error: #ac4039; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.8 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    main { max-width: 70rem; margin: auto; padding: 1.4rem clamp(1rem, 4vw, 3rem) 3.5rem; }
+    a { color: var(--accent); text-underline-offset: .2em; overflow-wrap: anywhere; }
+    nav { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); font-size: .85rem; }
+    header { max-width: 50rem; padding: 2rem 0 1.6rem; }
+    .eyebrow { margin: 0 0 .6rem; color: var(--muted); font-size: .78rem; letter-spacing: .08em; }
+    h1 { margin: 0 0 1rem; font-size: clamp(1.9rem, 4.3vw, 2.9rem); font-weight: 650; letter-spacing: -.035em; line-height: 1.25; text-wrap: balance; }
+    h2 { margin: 0 0 .6rem; font-size: 1.35rem; line-height: 1.5; }
+    h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+    p { margin: .6rem 0; }
+    .lead { margin: 0; font-size: 1.05rem; color: #465750; }
+    .scene-note { max-width: 48rem; margin-bottom: 1.2rem; color: var(--muted); }
+    .lesson-stage { padding: clamp(1rem, 3vw, 2rem); border: 1px solid var(--line); background: var(--surface); border-radius: .6rem; }
+    .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .8rem 0; }
+    button { max-width: 100%; padding: .65rem 1rem; border: 1px solid var(--accent); border-radius: .35rem; background: var(--accent); color: white; font: inherit; font-size: .92rem; line-height: 1.5; cursor: pointer; }
+    button.secondary { color: var(--accent); background: white; border-color: var(--line); }
+    button:hover:not(:disabled) { filter: brightness(.94); }
+    button:disabled { opacity: .5; cursor: default; }
+    a:focus-visible, button:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #b48225; outline-offset: 4px; }
+    .feedback { margin: 1rem 0 1.3rem; padding: 1rem 1.2rem; border-left: 3px solid var(--accent); background: var(--tint); }
+    .feedback p { margin: .2rem 0; }
+    .trace { margin: 1rem 0 0; padding-left: 1.4rem; font-size: .88rem; color: var(--muted); }
+    .rule { max-width: 48rem; margin: 2rem 0; }
+    .rule ol { padding-left: 1.4rem; }
+    .rule li + li { margin-top: .5rem; }
+    .takeaway { margin-top: 1.2rem; color: var(--accent); font-weight: 600; }
+    details { margin: 1rem 0; padding-top: 1rem; border-top: 1px solid var(--line); }
+    summary { cursor: pointer; color: var(--accent); font-size: .92rem; }
+    details > div { margin-top: 1rem; max-width: 52rem; }
+    .reference-list { padding-left: 1.2rem; font-size: .88rem; color: var(--muted); }
+    .reference-list li + li { margin-top: .7rem; }
+    code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .88em; overflow-wrap: anywhere; }
+    pre { max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; padding: 1rem; background: #f3f6f2; border-left: 2px solid #bdcfc3; font-size: .9rem; line-height: 1.65; }
+    .model-note, .followup { color: var(--muted); font-size: .82rem; }
+    .model-note { margin-top: .8rem; }
+    .followup { padding-top: 1rem; border-top: 1px solid var(--line); }
+    [hidden] { display: none !important; }
+    .prerequisite { margin-top: .8rem; color: var(--muted); font-size: .85rem; }
+    .scenario-picker { display: grid; gap: .35rem; max-width: 38rem; }
+    .scenario-picker label { font-size: .86rem; font-weight: 650; }
+    select { width: 100%; min-width: 0; padding: .65rem .6rem; border: 1px solid var(--line); border-radius: .35rem; background: white; color: var(--ink); font: inherit; font-size: .9rem; }
+    .scenario-hint { margin: .35rem 0 0; font-size: .84rem; color: var(--muted); }
+    .progress { margin-left: auto; font: .84rem/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace; color: var(--muted); }
+    .feedback strong { font-size: .96rem; }
+    .feedback code { display: block; margin-top: .6rem; padding-top: .55rem; border-top: 1px solid #ccdcd2; font-size: .79rem; line-height: 1.6; }
+    .feedback[data-tone="warning"] { border-left-color: var(--wait); background: #faf4e8; }
+    .feedback[data-tone="error"] { border-left-color: var(--error); background: #fbefed; }
+    .graph-heading { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: .3rem; margin-bottom: .6rem; }
+    .graph-heading h3 { margin: 0; font-weight: 600; }
+    .graph-heading span { color: var(--muted); font-size: .76rem; }
+    .graph { display: grid; grid-template-columns: 1.05fr minmax(1.25rem, .12fr) 1fr minmax(1.25rem, .12fr) 1fr; gap: .45rem; align-items: stretch; }
+    .lane { min-width: 0; padding: .9rem; border: 1px solid var(--line); background: #f7f9f6; border-radius: .4rem; }
+    .lane-title { font-size: .82rem; font-weight: 650; color: var(--muted); margin: 0 0 .6rem; }
+    .db-lane { border: 2px solid #88ad9c; background: #f2f8f4; }
+    .db-boundary { margin: 0 0 .8rem; padding-bottom: .55rem; border-bottom: 1px solid #bed3c6; font-size: .76rem; color: var(--accent); }
+    .node { min-width: 0; margin-top: .6rem; padding: .75rem; border: 1px solid var(--line); border-radius: .25rem; background: white; transition: border-color .16s, background-color .16s; }
+    .node[data-active="true"] { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); background: #f1f8f3; }
+    .node[data-active="true"][data-tone="error"] { border-color: var(--error); box-shadow: inset 3px 0 var(--error); background: #fff4f1; }
+    .node[data-active="true"][data-tone="warning"] { border-color: var(--wait); box-shadow: inset 3px 0 var(--wait); background: #fff9ef; }
+    .node-label { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .73rem; }
+    .node strong { font-size: .99rem; font-weight: 650; }
+    .state { display: block; margin: .3rem 0; font: 600 1rem/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace; color: var(--accent); }
+    .state[data-status="wait"], .state[data-status="pending"], .state[data-status="running"] { color: var(--wait); }
+    .state[data-status="absent"], .state[data-status="uncommitted"] { color: var(--muted); }
+    .node p { margin: .25rem 0; font-size: .78rem; line-height: 1.65; overflow-wrap: anywhere; }
+    .minor { color: var(--muted); }
+    .row-link { margin: .6rem 0 0; font-size: .72rem; color: var(--accent); text-align: center; }
+    .connector { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: .65rem; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
+    .connector .arrow { font-size: 1.4rem; color: var(--accent); }
+    .counter { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3rem; border-top: 1px solid var(--line); padding-top: .5rem; margin-top: .5rem; font-size: .76rem; }
+    .counter b { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-weight: 600; }
+    .deliveries { list-style: none; padding: 0; margin: .5rem 0 0; }
+    .deliveries li { margin-top: .35rem; padding: .4rem .5rem; border-left: 2px solid var(--wait); background: #f7f5ee; font-size: .74rem; line-height: 1.65; }
+    .deliveries li[data-status="ack"] { border-left-color: var(--accent); background: var(--tint); }
+    .deliveries li[data-status="lost"] { border-left-color: var(--error); background: #fbefed; }
+    .gap-note { margin: 1rem 0 0; padding: .75rem .9rem; border: 1px dashed #b8c6bd; color: #506258; font-size: .82rem; line-height: 1.7; }
+    .gap-note[data-open="true"] { border-color: var(--wait); background: #fff7e9; color: #725319; }
+    .graph-legend { margin: .7rem 0 0; font-size: .74rem; color: var(--muted); }
+    .graph-legend span { border-left: 3px solid var(--accent); padding-left: .4rem; }
+    .trace li[data-current="true"] { color: var(--ink); font-weight: 600; }
+    .boundary { padding: 1rem 1.15rem; border-left: 3px solid var(--wait); background: #faf4e8; }
+    .boundary h3 { color: #785719; }
+    .boundary p { font-size: .9rem; }
+    noscript p { padding: 1rem; border: 1px solid var(--line); }
+    @media (max-width: 48rem) {
+      .graph { grid-template-columns: 1fr; gap: .4rem; }
+      .connector { flex-direction: row; gap: .5rem; min-height: 1.8rem; }
+      .connector .arrow { transform: rotate(90deg); }
+      .lane { padding: .8rem; }
+      .db-lane .node { display: grid; grid-template-columns: 1fr 1fr; column-gap: .5rem; }
+      .db-lane .node .node-label, .db-lane .node .minor, .db-lane .node .counter { grid-column: 1 / -1; }
+      .db-lane .node .state { margin: 0; text-align: right; font-size: .9rem; align-self: center; }
+      .db-lane .node strong { font-size: .9rem; }
+      .lane-title { margin-bottom: .3rem; }
+      .lane .node { margin-top: .4rem; }
+    }
+    @media (max-width: 38rem) {
+      header { padding-top: 1.5rem; }
+      button { padding: .65rem .8rem; font-size: .84rem; }
+      .progress { width: 100%; margin-left: 0; }
+      .feedback { padding: .75rem .85rem; font-size: .88rem; }
+      .lesson-stage { padding: .85rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+    @media print {
+      body { background: white; font-size: 10pt; }
+      main { max-width: none; padding: 0; }
+      nav, .controls, .scenario-picker, button, .followup { display: none; }
+      header { padding: 0 0 1rem; }
+      h1 { font-size: 22pt; }
+      .lesson-stage { padding: .7rem; }
+      .lesson-stage, pre, .boundary { break-inside: avoid; }
+      .graph { grid-template-columns: 1.05fr .12fr 1fr .12fr 1fr; gap: .25rem; }
+      .lane { padding: .5rem; }
+      .node { padding: .5rem; box-shadow: none !important; }
+      .db-lane .node { display: block; }
+      .db-lane .node .state { text-align: left; }
+      .connector { flex-direction: column; }
+      .connector .arrow { transform: none; }
+      .feedback { margin: .7rem 0; padding: .6rem .75rem; }
+      .feedback p, .node p, .gap-note, .scenario-hint { font-size: 8pt; }
+      .trace { columns: 2; }
+      details::details-content { content-visibility: visible; }
+      details > :not(summary) { display: block; }
+      h1, h2, h3 { break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main data-lesson="transactional-outbox" data-scenario="normal" data-step="0" data-event="initial" data-complete="false">
+    <nav aria-label="课程导航">
+      <a href="../../GenBI/导学.md">← 返回导学</a>
+      <a href="../04-事务消息表.md">完整课程 · C04 受理任务与事务消息表</a>
+    </nav>
+    <header>
+      <p class="eyebrow">C04 受理任务与事务消息表 · 一次弄懂一个机制</p>
+      <h1>两张表一起提交，<br>为什么消息仍会重复？</h1>
+      <p class="lead">沿图表 101 的一次提交，分清「本地已提交」「投递标记 sent」和「结果 succeed」，解释 Publish 与标 sent 之间的重复窗口。</p>
+      <p class="prerequisite">前置：你已懂数据库事务和 HTTP CRUD。本页只补上一个未知：本地原子性为什么没有覆盖网络投递。</p>
+    </header>
+    <section id="explore" aria-labelledby="demo-title">
+      <h2 id="demo-title">先走正常路径：提交不是生成完成</h2>
+      <p class="scene-note">用户上传“日期、访问量”表格，异步生成图表 101。同一个数据库事务保存图表和待投递记录；事务提交后才算受理，后台再投递和生成。每按一次按钮，只推进下面链路中的一个事件。</p>
+      <div class="lesson-stage">
+        <div class="scenario-picker">
+          <label for="scenario">观察条件（默认先看正常路径）</label>
+          <select id="scenario" aria-describedby="scenario-hint">
+            <option value="normal">正常：提交、投递、生成都继续</option>
+            <option value="insert-failure">改变：outbox 插入失败</option>
+            <option value="publish-error">改变：第一次 Publish 返回错误</option>
+            <option value="publish-crash">改变：Publish 后、标 sent 前崩溃</option>
+            <option value="consumer-crash">补充边界：消费者领取后崩溃</option>
+          </select>
+        </div>
+        <p id="scenario-hint" class="scenario-hint">正常路径。后面示例假定消息实际到达、AI 返回成功；这不是 Publish 返回 nil 能证明的事。</p>
+        <div class="controls">
+          <button id="step" type="button" aria-controls="graph feedback trace">开始 · 写入 chart</button>
+          <button id="reset" type="button" class="secondary" aria-controls="graph feedback trace">重置当前条件</button>
+          <span id="progress" class="progress">事件 0 / 11</span>
+        </div>
+        <div id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" data-tone="normal">
+          <p><strong id="event-title">起点：101 还没有被受理</strong></p>
+          <p id="feedback-text">先在本地事务里写 chart，再写 outbox。两张表都成功才能一起提交；现在没有待投递记录，也没有图表结果。</p>
+          <code id="current-code">DB.Transaction → tx.Create(chart) → tx.Create(outbox) → COMMIT</code>
+        </div>
+        <div class="graph-heading">
+          <h3 id="graph-title">图表 101 · 同一对象的持续链路</h3>
+          <span>数据库 → relay / MQ → 消费者 → 更新原图表</span>
+        </div>
+        <div id="graph" class="graph" role="group" aria-labelledby="graph-title">
+          <section class="lane db-lane" aria-label="本地数据库，两张表的原子边界">
+            <h4 class="lane-title">01 / 本地数据库</h4>
+            <p class="db-boundary">原子边界只包含这两次写入<br><strong id="commit-state">未开始事务</strong></p>
+            <div id="chart-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">业务记录 · 执行 / 结果状态</span>
+              <strong>chart · 101</strong>
+              <span id="chart-status" class="state" data-status="absent">不存在</span>
+              <p id="chart-detail" class="minor">上传数据尚未提交。</p>
+            </div>
+            <p class="row-link">同一个 ID：aggregateId = 101，payload = "101"</p>
+            <div id="outbox-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">投递意图 · 投递状态</span>
+              <strong>outbox · 101 的消息</strong>
+              <span id="outbox-status" class="state" data-status="absent">不存在</span>
+              <p id="outbox-detail" class="minor">没有可供 relay 扫描的记录。</p>
+              <div class="counter"><span>retryCount</span><b id="retry-count">0</b></div>
+            </div>
+            <p id="http-state" class="minor">HTTP：尚未返回受理结果</p>
+          </section>
+          <div class="connector" aria-hidden="true"><span>扫描<br>pending</span><span class="arrow">→</span></div>
+          <section class="lane" aria-label="relay 和消息链路，不在本地事务里">
+            <h4 class="lane-title">02 / 后台投递</h4>
+            <div id="relay-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">relay · 读取已提交记录</span>
+              <strong id="relay-state">等待提交</strong>
+              <p id="relay-detail" class="minor">只查 status = pending。</p>
+              <div class="counter"><span>扫描轮次</span><b id="scan-count">0</b></div>
+            </div>
+            <div id="publish-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">Publish("101") · 网络调用</span>
+              <strong id="publish-state">尚未调用</strong>
+              <p class="minor">nil = 客户端返回成功<br>不是 broker 持久化证明</p>
+              <div class="counter"><span>调用 / nil 返回</span><b><span id="publish-count">0</span> / <span id="nil-count">0</span></b></div>
+            </div>
+            <div id="delivery-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">示例中观察到的消息到达</span>
+              <p id="delivery-empty" class="minor">尚未观察到消费者收到消息。</p>
+              <ol id="deliveries" class="deliveries" aria-label="图表 101 的投递副本"></ol>
+            </div>
+          </section>
+          <div class="connector" aria-hidden="true"><span>按 ID<br>消费</span><span class="arrow">→</span></div>
+          <section class="lane" aria-label="消费抢占和结果写回">
+            <h4 class="lane-title">03 / 消费与结果</h4>
+            <div id="cas-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">CAS · 有条件的原子更新</span>
+              <strong id="cas-state">还没有领取</strong>
+              <p><code>WHERE id = 101<br>AND status = 'wait'<br>SET status = 'running'</code></p>
+              <p id="cas-detail" class="minor">1 行：获得生成资格<br>0 行：跳过；不代表已经成功</p>
+              <div class="counter"><span>成功领取 / 跳过</span><b><span id="claim-count">0</span> / <span id="skip-count">0</span></b></div>
+            </div>
+            <div id="result-node" class="node" data-active="false" data-tone="normal">
+              <span class="node-label">生成结果 · 写回左侧 chart 101</span>
+              <strong id="result-state">没有结果</strong>
+              <p id="result-detail" class="minor">outbox.sent 不会写 genChart 或 genResult。</p>
+              <div class="counter"><span>AI 调用次数</span><b id="ai-count">0</b></div>
+            </div>
+          </section>
+        </div>
+        <p id="gap-note" class="gap-note" data-open="false">事务保护「chart + outbox 一起提交」。Publish 与 UPDATE outbox SET status = 'sent' 是之后的两个独立操作。</p>
+        <p class="graph-legend"><span>左边线突出本事件改动的节点。</span> 三种事实要分开看：本地提交、投递状态、生成结果。</p>
+        <ol id="trace" class="trace" aria-label="已经发生的事件"></ol>
+        <noscript><p>交互需要启用 JavaScript，页面不需要联网。正常链路：chart(wait) 与 outbox(pending) 在同一事务提交 → relay 扫描 → Publish 返回 nil → 标 sent → 消费者 CAS 领取 → 生成并写 succeed。Publish 后、标 sent 前崩溃，会留下 pending 供下轮重发。</p></noscript>
+      </div>
+      <p class="model-note">这是源码分支的事件模型，不运行数据库或 RabbitMQ。正常路径选择“先标 sent，再消费”的一种合法时序；实际消费可与 relay 交叠。图中的消息到达是单独观察事件，不能从 Publish 的 nil 返回推导出来。</p>
+    </section>
+    <section id="mechanism" class="rule">
+      <h2>判断可靠性，按这三个问题走</h2>
+      <ol>
+        <li><strong>本地提交了吗？</strong> chart 和 outbox 都用同一个 <code>tx</code>。任一次写入失败就回滚；提交成功留下 <code>wait + pending</code>，表示受理了工作及其投递意图，不表示结果已生成。</li>
+        <li><strong>投递在哪个边界停下？</strong> 返回错误时保留 pending，正常的计数更新使 retryCount + 1；后续仍可扫描。Publish 返回 nil 后，标 sent 之前仍是 pending；若此时崩溃，下一轮不知道上次是否已经发出，只能再发 101。</li>
+        <li><strong>领取资格等于完成结果吗？</strong> CAS 只允许 <code>wait → running</code>。重复消息命中 0 行会跳过；它没有证明 succeed，更没有把 running 的失联执行者恢复起来。</li>
+      </ol>
+      <p class="takeaway">事务绑定的是两次本地写入，不是一次端到端执行。sent ≠ succeed；CAS 跳过 ≠ 完成恢复。</p>
+      <div class="boundary">
+        <h3>当前实现不能承诺全链路不丢不重</h3>
+        <p>生产者设置了 <code>DeliveryMode: Persistent</code>，但没有启用 publisher confirms，且 <code>mandatory=false</code>，没有不可路由消息的退回处理。<strong>Publish 返回 nil 只是客户端返回成功，不是 broker 已持久化或已成功路由的证据。</strong> relay 随后就会标 sent，因此不能宣称“保证无损”或 exactly-once。</p>
+        <p>源码能支持的结论是：受理时持久化投递意图，返回错误后保留可重试记录，允许重复投递，并用状态 CAS 限制重复启动。重复消费去重和执行完成恢复仍是不同问题。</p>
+      </div>
+      <p>看完正常路径，再在上方依次改变 outbox 写入、Publish 返回值和崩溃位置。沿同一图表看哪一层变了，其他层为什么没变；最后用消费者崩溃分支检查“跳过”并不等于“完成”。</p>
+    </section>
+    <details id="evidence">
+      <summary>按需查阅：源码、术语和适用边界</summary>
+      <div>
+        <p>源码基线：<code>6a0384cbf3a1f1901d5f7e5401fc5905d7590a49</code>；分析日期：<time datetime="2026-11-08">2026-11-08</time>。已比对下列关键文件与基线一致；行号只作辅助定位。</p>
+        <ul class="reference-list">
+          <li><a href="../../../backend/internal/service/chart_service.go#L217-L236">ChartService.SaveWait</a>：两次 <code>tx.Create</code> 在同一个 <code>db.Transaction</code> 中；outbox 用 chart.ID 作为 aggregateId 和字符串 payload，错误时返回业务失败，不交付成功受理 ID。</li>
+          <li><a href="../../../backend/internal/outbox/relay.go#L59-L79">relay 的数据库操作</a>：只扫描 pending；markSent 更新 sent；incrementRetry 只增加计数。<a href="../../../backend/internal/outbox/relay.go#L123-L152">runOnce</a>：先 Publish，再标 sent；Publish 报错就计数并继续，标 sent 失败也会留下 pending。retryCount 不是自动丢弃阈值。</li>
+          <li><a href="../../../backend/internal/mq/producer.go#L20-L35">Producer.Publish</a>：调用 <code>PublishWithContext</code>，mandatory 为 false，设置 Persistent。<a href="../../../backend/internal/mq/client.go#L16-L32">MQ 信道初始化</a>没有启用 confirms；不能把“持久化标志”当成“已经确认落盘”。</li>
+          <li><a href="../../../backend/internal/service/chart_service.go#L244-L295">ProcessChart 与 CAS 结果分类</a>：status = wait 才更新 running，0 行返回 <code>ErrAlreadyProcessed</code>；调用 AI 后另一次更新 succeed、genChart 和 genResult。</li>
+          <li><a href="../../../backend/internal/mq/consumer.go#L74-L107">Consumer.handle</a>：CAS 哨兵错误走直接 ACK 分支，不重试、不 MarkFailed、不发状态事件。正常生成完成后才发布 succeed 事件并 ACK。ACK 是消费端确认，不是 publisher confirm。</li>
+        </ul>
+        <h3>模型的假设与省略</h3>
+        <p>图表 ID 101 是教学实例；outbox 的自增主键不必等于 101，图上“101 的消息”指 aggregateId / payload。失败事务不保证回收已经分配的自增 ID。</p>
+        <p>演示假定 SQL 提交、retryCount 更新和标 sent（未注入故障的步骤）成功，扫描与消费者最终有机会运行，收到消息后按所选时序处理。Publish 错误分支假定那一次没有到达；真实错误也不能证明远端一定没收到。</p>
+        <p>relay 崩溃分支只改变投递进程：首次 Publish 返回 nil 后、标 sent 前退出，再启动会立即扫描。消费者崩溃分支则假定连接中断后，尚未 ACK 的原消息被重新投递；它不是第二次 Publish。该分支没有走正常错误返回或重试耗尽兜底，因此 chart 仍是 running。</p>
+        <p>页面没有模拟多 relay 实例并发扫描、MQ 重连、数据库扫描错误、消费超时或死信。当前 relay 没有领取租约，消费者 CAS 也不是失联任务的回收机制。源码注释中的“不丢”及“exactly-once 效果”应按上述实际确认边界收窄。</p>
+        <p>若增强确认、退回处理、重连或执行恢复，需要另加机制；本页不把这些未实现方案画成既有行为。更多链路见<a href="../04-事务消息表.md">完整课程 C04</a>。</p>
+      </div>
+    </details>
+    <p class="followup">哪一步还没想通，可以把当时的场景和操作告诉我，我们沿着这一步继续看。</p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const byId = id => document.getElementById(id);
+      const main = document.querySelector('main');
+      const scenarioSelect = byId('scenario');
+      const stepButton = byId('step');
+      const resetButton = byId('reset');
+      const trace = byId('trace');
+      const deliveriesList = byId('deliveries');
+      const nodes = ['chart', 'outbox', 'relay', 'publish', 'delivery', 'cas', 'result'];
+      const text = (id, value) => { byId(id).textContent = String(value); };
+      let state;
+      let cursor = 0;
+      let scenario = 'normal';
+
+      const freshState = () => ({
+        transaction: 'idle', chart: 'absent', outbox: 'absent', http: 'waiting',
+        retry: 0, scans: 0, publishes: 0, nils: 0, claims: 0, skips: 0, ai: 0,
+        relay: '等待提交', relayDetail: '只查 status = pending。',
+        publishReturn: '尚未调用', cas: '还没有领取',
+        casDetail: '1 行：获得生成资格；0 行：跳过，不代表已经成功。',
+        result: '没有结果', resultDetail: 'outbox.sent 不会写 genChart 或 genResult。',
+        deliveries: [], gap: false
+      });
+
+      // Each event mutates the same chart, outbox, and message ledger; no answer panels are swapped.
+      const events = {
+        'write-chart': {
+          title: '在事务内写入 chart 101', targets: ['chart'],
+          code: "tx.Create(chart{ID: 101, Status: 'wait'})",
+          explanation: 'chart 101 暂时存在于事务里，状态是 wait。事务还没提交，其他正常读取看不到这次新写入；HTTP 也尚未成功受理，outbox 仍不存在。',
+          apply: s => { s.transaction = 'open'; s.chart = 'wait'; }
+        },
+        'write-outbox': {
+          title: '在同一事务内写入 outbox', targets: ['outbox'],
+          code: "tx.Create(outbox{AggregateID: 101, Payload: '101', Status: 'pending'})",
+          explanation: '第二次写入也使用 tx，绑定同一个图表 ID 101。现在事务里是 wait + pending，但两条记录都还没有提交，relay 不能据此提前投递。',
+          apply: s => { s.outbox = 'pending'; }
+        },
+        'insert-error': {
+          title: 'outbox 插入返回错误', targets: ['outbox'], tone: 'error',
+          code: 'if err := tx.Create(msg).Error; err != nil { return err }',
+          explanation: '改变的只有第二次写入：outbox 没写成，回调返回错误。先前 chart 的事务内写入不能单独提交；下一事件回滚，当前也没有成功受理或 Publish。',
+          apply: s => { s.transaction = 'error'; }
+        },
+        'rollback': {
+          title: '本地事务回滚', targets: ['chart', 'outbox'], tone: 'error',
+          code: 'Transaction error → ROLLBACK → SaveWait returns 0, error',
+          explanation: '回调出错使事务回滚，刚才临时写入的 chart 101 也被撤销。两张表都没有这次记录，HTTP 返回业务错误；不会留下“图表已受理、却没有投递意图”的半次成功。',
+          apply: s => { s.transaction = 'rolledback'; s.chart = 'absent'; s.outbox = 'absent'; s.http = 'error'; s.relay = '没有待投递记录'; }
+        },
+        'commit': {
+          title: '两条记录一起提交', targets: ['chart', 'outbox'],
+          code: 'COMMIT → SaveWait returns chart.ID (101), nil',
+          explanation: '事务成功，chart(wait) 与 outbox(pending) 一起成为已提交记录，HTTP 得以返回 101。受理成功保护了投递意图；Publish 次数仍为 0，生成结果仍不存在。',
+          apply: s => { s.transaction = 'committed'; s.http = 'accepted'; s.relay = '可扫描 pending'; }
+        },
+        'scan': {
+          title: 'relay 扫到 pending', targets: ['relay', 'outbox'],
+          code: "SELECT outbox WHERE status = 'pending' ORDER BY id ASC LIMIT 100",
+          explanation: 'relay 读到 101 的已提交投递意图，准备发送 payload "101"。扫描不会改变 chart.wait，也不会自动把 outbox 标 sent。',
+          apply: s => { s.scans++; s.relay = '本轮已读到 101'; s.relayDetail = '载荷 "101"，准备调用 Publish。'; }
+        },
+        'publish-nil': {
+          title: 'Publish 返回 nil', targets: ['publish'], tone: 'warning',
+          code: 'publisher.Publish("101") → nil // client-return success',
+          explanation: '网络调用在客户端返回成功，调用计数 +1。outbox 仍是 pending，chart 仍是 wait；现在打开了“已发出但还未标 sent”的窗口。没有 confirms，nil 不能证明 broker 已持久化或路由成功。',
+          apply: s => { s.publishes++; s.nils++; s.publishReturn = 'nil · 客户端返回成功'; s.gap = true; }
+        },
+        'publish-error': {
+          title: '第一次 Publish 返回错误', targets: ['publish'], tone: 'error',
+          code: 'publisher.Publish("101") → error; enter incrementRetry branch',
+          explanation: '这次网络调用返回错误，relay 不会标 sent。outbox 保持 pending，chart 保持 wait；下一事件仅更新重试计数。本例假定该次未到达，但真实报错也不是远端未收到的证明。',
+          apply: s => { s.publishes++; s.publishReturn = 'error · 等待计数与重试'; }
+        },
+        'increment-retry': {
+          title: '只增加 retryCount', targets: ['outbox', 'relay'], tone: 'warning',
+          code: "UPDATE outbox SET retryCount = retryCount + 1 // status remains pending",
+          explanation: 'Publish 错误分支将 retryCount 从 0 增到 1，status 仍为 pending，所以后续扫描还能再次读到 101。这个计数用于观察错误，不是次数达到就丢弃的阈值；chart 和结果都没有改变。',
+          apply: s => { s.retry++; s.relay = '等待下一轮重试'; s.relayDetail = 'pending 未移除，计数更新成功。'; }
+        },
+        'rescan': {
+          title: '下一轮再次扫描 pending', targets: ['relay', 'outbox'],
+          code: "fetchPending() → the same payload '101'",
+          explanation: '扫描条件只看 pending，不因 retryCount = 1 而排除记录。relay 再次选中同一条 101；没有创建第二张图表，也没有重新提交 HTTP 请求。',
+          apply: s => { s.scans++; s.relay = '再读到同一条 101'; s.relayDetail = '即将重新调用 Publish，chart 仍为 wait。'; }
+        },
+        'relay-crash': {
+          title: '标 sent 前投递进程崩溃', targets: ['relay', 'outbox'], tone: 'error',
+          code: "Publish returned nil → process exits before markSent(rec.ID)",
+          explanation: '只改变崩溃位置：Publish 已返回 nil，但 UPDATE sent 还没有发生。已提交的 pending 留在数据库里；网络调用不能随进程退出或数据库操作撤销。retryCount 没有增加，因为这不是 Publish 报错分支。',
+          apply: s => { s.relay = '投递进程已退出'; s.relayDetail = '没有执行 markSent；pending 留存。'; }
+        },
+        'restart-scan': {
+          title: '重启后扫描到原 pending', targets: ['relay', 'outbox'], tone: 'warning',
+          code: "Relay.Start → runOnce → fetchPending() finds 101 again",
+          explanation: '重启立即扫描，仍看见同一条 pending。数据库没有记录“上次 Publish 已返回”，无法据此排除 101；下一事件只能重发。chart 仍 wait，结果仍不存在。',
+          apply: s => { s.scans++; s.relay = '重启后读到原记录'; s.relayDetail = 'pending 是唯一扫描依据，将重发 "101"。'; }
+        },
+        'publish-duplicate': {
+          title: '再次 Publish 同一个 101', targets: ['publish'], tone: 'warning',
+          code: 'publisher.Publish("101") → nil // second call, same payload',
+          explanation: '同一载荷第二次发送，Publish 调用数变为 2；不是两次用户提交，也不是两张图表。示例稍后会分别观察到两份消息，说明本地事务没有消除这个重复窗口。',
+          apply: s => { s.publishes++; s.nils++; s.publishReturn = '第 2 次 nil · 同一载荷'; s.gap = true; }
+        },
+        'mark-sent': {
+          title: '单独将 outbox 标 sent', targets: ['outbox', 'relay'],
+          code: "UPDATE outbox SET status = 'sent' WHERE id = rec.ID",
+          explanation: '这一次 SQL 更新成功，outbox 变成 sent，后续 pending 扫描不会选中它。但 chart 还是 wait，没有生成结果。它记录 relay 的投递标记，不补充 broker 持久化证据，也不撤回已经可能发出的副本。',
+          apply: s => { s.outbox = 'sent'; s.gap = false; s.relay = '本条已标 sent'; s.relayDetail = '下一轮不会按 pending 选中本条。'; }
+        },
+        'receive-first': {
+          title: '消费者收到第一份 101', targets: ['delivery'],
+          code: "delivery.Body = '101' → chartID = 101",
+          explanation: '这是单独观察到的消息到达，不是根据 nil 推断的交付。消费者读到 ID 101；仅收到消息还没有生成资格，chart 仍是 wait，下一步必须原子地领取。',
+          apply: s => { s.deliveries.push({ id: 'first', label: '副本 A · 101', status: 'received', detail: '已收到，尚未领取' }); }
+        },
+        'cas-first': {
+          title: '第一份消息 CAS 命中 1 行', targets: ['cas', 'chart'],
+          code: "UPDATE chart SET status = 'running' WHERE id = 101 AND status = 'wait' → 1 row",
+          explanation: 'chart 当前是 wait，条件更新命中 1 行，原图表 101 变为 running。这个消费者取得生成资格；outbox 仍 sent，结果仍不存在，CAS 本身没有完成 AI 生成。',
+          apply: s => {
+            s.chart = 'running'; s.claims++; s.cas = '1 行 · 已领取 101';
+            s.casDetail = 'wait → running；只有这一份取得生成资格。';
+            s.result = '已领取，但没有结果'; s.resultDetail = '接下来才能调用 AI，随后写回结果。';
+            s.deliveries.find(d => d.id === 'first').detail = '已领取，尚未 ACK';
+          }
+        },
+        'start-ai': {
+          title: '领取者开始一次 AI 调用', targets: ['result'],
+          code: 'deepSeek.AnalyzeCsv(ctx, prompt)',
+          explanation: '唯一领取成功的消费者开始生成，AI 调用次数变为 1。chart 仍 running；生成开始不是结果已落库，outbox.sent 也不会替它完成这一步。',
+          apply: s => { s.ai++; s.result = '生成中 · 结果未写入'; s.resultDetail = '本例 AI 尚未返回，chart 仍 running。'; }
+        },
+        'receive-second': {
+          title: '消费者收到第二份 101', targets: ['delivery'], tone: 'warning',
+          code: "another delivery.Body = '101' // same chart, another consumer",
+          explanation: '另一消费者收到重发的副本 B；它仍指向原图表 101。第一位执行者正在生成，chart 是 running。消息份数变多，但不因此自动获得第二份生成资格。',
+          apply: s => { s.deliveries.push({ id: 'second', label: '副本 B · 101', status: 'received', detail: '已收到，等待 CAS' }); }
+        },
+        'cas-duplicate': {
+          title: '第二份消息 CAS 命中 0 行', targets: ['cas', 'chart'], tone: 'warning',
+          code: "WHERE id = 101 AND status = 'wait' → 0 rows → ErrAlreadyProcessed",
+          explanation: '原图表已经 running，第二次 CAS 的 wait 条件不成立，返回跳过哨兵。chart 不变，AI 调用仍为 1；尤其注意，此时尚无结果，0 行不能证明生成完成或具备故障恢复。',
+          apply: s => {
+            s.skips++; s.cas = '0 行 · 第二份不能领取';
+            s.casDetail = '当前是 running，不是 wait；不再启动生成。';
+            s.deliveries.find(d => d.id === 'second').detail = 'CAS 0 行，将跳过';
+          }
+        },
+        'ack-second': {
+          title: '直接 ACK 第二份消息', targets: ['delivery', 'cas'], tone: 'warning',
+          code: 'errors.Is(err, ErrAlreadyProcessed) → d.Ack(false); return',
+          explanation: 'consumer 识别 CAS 哨兵后直接 ACK 副本 B，不重试、不 MarkFailed、不发状态事件。原执行者还在生成，chart 仍 running；跳过仅处理重复消息，不提供结果。',
+          apply: s => { const d = s.deliveries.find(item => item.id === 'second'); d.status = 'ack'; d.detail = 'ACK · 幂等跳过，未生成'; }
+        },
+        'write-result': {
+          title: '正常执行者写入生成结果', targets: ['chart', 'result'],
+          code: "UPDATE chart SET status = 'succeed', genChart = ..., genResult = ... WHERE id = 101",
+          explanation: '示例假定 AI 已正常返回，结果更新成功；原图表 101 现在才变成 succeed，genChart 与 genResult 已落库。outbox 的 sent 不变，AI 调用仍只有 1 次。',
+          apply: s => { s.chart = 'succeed'; s.result = '结果已落库 · succeed'; s.resultDetail = 'genChart + genResult 已写回原 chart 101。'; }
+        },
+        'ack-first': {
+          title: '正常消费者 ACK 第一份消息', targets: ['delivery'],
+          code: 'ProcessChart returns nil → publish succeed event → d.Ack(false)',
+          explanation: '正常消费者在结果成功写回之后确认副本 A（成功分支先发布状态事件）。三层事实现在分别是：本地已提交、outbox 已标 sent、chart 已写 succeed。这个成功示例不扩大生产者的可靠性保证。',
+          apply: s => { const d = s.deliveries.find(item => item.id === 'first'); d.status = 'ack'; d.detail = 'ACK · 正常完成'; }
+        },
+        'consumer-crash': {
+          title: '领取者在结果写入前崩溃', targets: ['result', 'chart'], tone: 'error',
+          code: "chart = 'running'; process exits before result update and ACK",
+          explanation: '只改变执行者是否活着：它已领取并开始 AI 调用，却在结果写回与 ACK 前退出。chart.running 已经提交，不会随进程崩溃回滚；outbox.sent 也不会因此重新生成工作。',
+          apply: s => {
+            s.result = '执行者已退出 · 无结果'; s.resultDetail = 'running 没有回收为 wait；没有写入 succeed。';
+            const d = s.deliveries.find(item => item.id === 'first'); d.status = 'lost'; d.detail = '连接中断，尚未 ACK';
+          }
+        },
+        'redeliver': {
+          title: '原消息未 ACK，被重新投递', targets: ['delivery'], tone: 'warning',
+          code: "unacked delivery is redelivered after connection loss; no new Publish",
+          explanation: '本例假定 broker 将未 ACK 的原消息重新投递给新消费者。这是 A 的重投，不是 relay 再 Publish；调用数仍是 1。新消费者面对的原图表依然是 running，没有生成结果。',
+          apply: s => { s.deliveries.push({ id: 'redelivery', label: 'A 重投 · 101', status: 'received', detail: '重新收到，等待 CAS' }); }
+        },
+        'cas-redelivery': {
+          title: '重投消息 CAS 仍命中 0 行', targets: ['cas', 'chart'], tone: 'error',
+          code: "status = 'running' → wait condition fails → ErrAlreadyProcessed",
+          explanation: '原执行者虽然已经退出，数据库仍是 running，CAS 并不判断执行者是否存活。新消费者无法重新领取，AI 调用数仍为 1；没有恢复执行，也没有补写结果。',
+          apply: s => {
+            s.skips++; s.cas = '0 行 · running 阻止重入';
+            s.casDetail = 'CAS 只看状态，不检查失联，也不回收执行资格。';
+            s.deliveries.find(d => d.id === 'redelivery').detail = 'CAS 0 行，将跳过';
+          }
+        },
+        'ack-redelivery': {
+          title: '重投被 ACK，但图表仍未完成', targets: ['delivery', 'result'], tone: 'error',
+          code: 'ErrAlreadyProcessed → ACK and return // no recovery branch',
+          explanation: '重投命中哨兵后直接 ACK，不重试、不 MarkFailed。图表 101 留在 running，结果未落库。这个结局证明：CAS 防重复启动，不证明完成恢复；需要额外的失联任务恢复机制，当前链路没有。',
+          apply: s => { const d = s.deliveries.find(item => item.id === 'redelivery'); d.status = 'ack'; d.detail = 'ACK · 跳过，结果未恢复'; }
+        }
+      };
+
+      const beforePublish = ['write-chart', 'write-outbox', 'commit', 'scan'];
+      const normalFinish = ['receive-first', 'cas-first', 'start-ai', 'write-result', 'ack-first'];
+      const scenarios = {
+        normal: {
+          hint: '正常路径。后面示例假定消息实际到达、AI 返回成功；这不是 Publish 返回 nil 能证明的事。',
+          sequence: [...beforePublish, 'publish-nil', 'mark-sent', ...normalFinish]
+        },
+        'insert-failure': {
+          hint: '只改变第二次本地写入：outbox 插入报错。观察 chart 是否能单独成为已受理记录。',
+          sequence: ['write-chart', 'insert-error', 'rollback']
+        },
+        'publish-error': {
+          hint: '只改变第一次 Publish 返回值：报错。本例计数更新成功，下一轮恢复，第二次调用返回 nil。',
+          sequence: [...beforePublish, 'publish-error', 'increment-retry', 'rescan', 'publish-nil', 'mark-sent', ...normalFinish]
+        },
+        'publish-crash': {
+          hint: '只改变投递崩溃位置：首次 Publish 后、标 sent 前退出。重启重发，两份消息到达；第二份在第一份生成中尝试领取。',
+          sequence: [...beforePublish, 'publish-nil', 'relay-crash', 'restart-scan', 'publish-duplicate', 'mark-sent', 'receive-first', 'cas-first', 'start-ai', 'receive-second', 'cas-duplicate', 'ack-second', 'write-result', 'ack-first']
+        },
+        'consumer-crash': {
+          hint: '在正常投递基础上，只改变领取者：它在生成开始后、结果写入前退出。原消息未 ACK 后重投，看 CAS 会不会恢复结果。',
+          sequence: [...beforePublish, 'publish-nil', 'mark-sent', 'receive-first', 'cas-first', 'start-ai', 'consumer-crash', 'redeliver', 'cas-redelivery', 'ack-redelivery']
+        }
+      };
+
+      const transactionLabels = {
+        idle: '未开始事务', open: '事务内暂存 · 未提交',
+        error: '回调已报错 · 不能提交', committed: '已提交 · 本地受理成功',
+        rolledback: '已回滚 · 未受理'
+      };
+      const renderState = event => {
+        const uncommitted = state.transaction === 'open' || state.transaction === 'error';
+        text('commit-state', transactionLabels[state.transaction]);
+        text('chart-status', state.chart === 'absent' ? '不存在' : state.chart);
+        byId('chart-status').dataset.status = uncommitted ? 'uncommitted' : state.chart;
+        text('chart-detail', uncommitted ? '仅事务内可见，还不是成功受理。' :
+          state.chart === 'absent' ? '没有这次提交留下的业务记录。' :
+          state.chart === 'wait' ? '已提交输入，等待消费者领取。' :
+          state.chart === 'running' ? '执行资格已领取，不代表有结果。' : 'genChart 与 genResult 已落库。');
+        text('outbox-status', state.outbox === 'absent' ? '不存在' : state.outbox);
+        byId('outbox-status').dataset.status = uncommitted && state.outbox !== 'absent' ? 'uncommitted' : state.outbox;
+        text('outbox-detail', state.outbox === 'absent' ? '没有可供 relay 扫描的记录。' :
+          uncommitted ? '仅事务内 pending，尚不可扫描。' :
+          state.outbox === 'pending' ? '已提交的投递意图，后续还会扫描。' : '投递标记完成；不是生成成功。');
+        text('http-state', state.http === 'accepted' ? 'HTTP：已返回受理 ID 101，不含生成结果' :
+          state.http === 'error' ? 'HTTP：业务错误，不返回成功受理 ID' : 'HTTP：尚未返回受理结果');
+        text('retry-count', state.retry);
+        text('scan-count', state.scans);
+        text('relay-state', state.relay);
+        text('relay-detail', state.relayDetail);
+        text('publish-state', state.publishReturn);
+        text('publish-count', state.publishes);
+        text('nil-count', state.nils);
+        text('cas-state', state.cas);
+        text('cas-detail', state.casDetail);
+        text('claim-count', state.claims);
+        text('skip-count', state.skips);
+        text('ai-count', state.ai);
+        text('result-state', state.result);
+        text('result-detail', state.resultDetail);
+        byId('delivery-empty').hidden = state.deliveries.length > 0;
+        // Keep each observed message node in place as its acknowledgement state changes.
+        state.deliveries.forEach(delivery => {
+          let li = byId('delivery-' + delivery.id);
+          if (!li) {
+            li = document.createElement('li');
+            li.id = 'delivery-' + delivery.id;
+            deliveriesList.appendChild(li);
+          }
+          li.dataset.status = delivery.status;
+          li.textContent = delivery.label + ' · ' + delivery.detail;
+        });
+        const gapNote = byId('gap-note');
+        gapNote.dataset.open = String(state.gap);
+        gapNote.textContent = state.gap ?
+          '重复窗口正在打开：Publish 已返回 nil，但 outbox 还是 pending。此时退出或标 sent 失败，下轮仍会选中 101；retryCount 不一定增加。' :
+          '事务保护「chart + outbox 一起提交」。Publish 与 UPDATE outbox SET status = \'sent\' 是之后的两个独立操作。';
+        nodes.forEach(name => {
+          byId(name + '-node').dataset.active = String(Boolean(event && event.targets.includes(name)));
+          byId(name + '-node').dataset.tone = event ? event.tone || 'normal' : 'normal';
+        });
+        const sequence = scenarios[scenario].sequence;
+        const complete = cursor === sequence.length;
+        main.dataset.scenario = scenario;
+        main.dataset.step = String(cursor);
+        main.dataset.event = cursor ? sequence[cursor - 1] : 'initial';
+        main.dataset.complete = String(complete);
+        text('progress', '事件 ' + cursor + ' / ' + sequence.length + (complete ? ' · 本路径结束' : ''));
+        stepButton.disabled = complete;
+        stepButton.textContent = complete ? '本路径已结束' : (cursor ? '下一事件 · ' : '开始 · ') + events[sequence[cursor]].title;
+      };
+
+      const reset = changed => {
+        scenario = scenarioSelect.value;
+        state = freshState();
+        cursor = 0;
+        trace.replaceChildren();
+        deliveriesList.replaceChildren();
+        text('scenario-hint', scenarios[scenario].hint);
+        byId('feedback').dataset.tone = 'normal';
+        text('event-title', changed ? '已改变条件 · 101 回到同一起点' : '起点：101 还没有被受理');
+        text('feedback-text', (changed ? scenarios[scenario].hint + ' ' : '') +
+          '先在本地事务里写 chart，再写 outbox。两张表都成功才能一起提交；现在没有待投递记录，也没有图表结果。');
+        text('current-code', 'DB.Transaction → tx.Create(chart) → tx.Create(outbox) → COMMIT');
+        renderState(null);
+      };
+
+      stepButton.addEventListener('click', () => {
+        const sequence = scenarios[scenario].sequence;
+        if (cursor >= sequence.length) return;
+        const eventId = sequence[cursor];
+        const event = events[eventId];
+        event.apply(state);
+        cursor++;
+        byId('feedback').dataset.tone = event.tone || 'normal';
+        text('event-title', '事件 ' + cursor + ' · ' + event.title);
+        text('feedback-text', event.explanation);
+        text('current-code', event.code);
+        const previous = trace.lastElementChild;
+        if (previous) previous.dataset.current = 'false';
+        const entry = document.createElement('li');
+        entry.dataset.event = eventId;
+        entry.dataset.current = 'true';
+        entry.textContent = event.title;
+        trace.appendChild(entry);
+        renderState(event);
+      });
+      scenarioSelect.addEventListener('change', () => reset(true));
+      resetButton.addEventListener('click', () => reset(false));
+      reset(false);
+    })();
+    (() => {
+      let lessonClosedDetails = [];
+      window.addEventListener('beforeprint', () => {
+        lessonClosedDetails = [...document.querySelectorAll('details:not([open])')];
+        lessonClosedDetails.forEach(node => { node.open = true; });
+      });
+      window.addEventListener('afterprint', () => {
+        lessonClosedDetails.forEach(node => { node.open = false; });
+        lessonClosedDetails = [];
+      });
+    })();
+  </script>
+</body>
+</html>
